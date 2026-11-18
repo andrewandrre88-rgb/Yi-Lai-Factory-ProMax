@@ -54,18 +54,49 @@ service cloud.firestore {
     function isValidSocialUrl(url) {
       return url is string
         && url.size() <= 300
-        && (url == '' || url.matches('^https?://.*'));
+        && (url == '' || url.matches('^(https?://|mailto:).*'));
+    }
+
+    function isValidSocialLinkItem(url) {
+      return url is string
+        && url.size() >= 1
+        && url.size() <= 300
+        && url.matches('^(https?://|mailto:).*');
+    }
+
+    function isValidSocialAccountList(listVal) {
+      return listVal is list
+        && listVal.size() <= 5
+        && (listVal.size() < 1 || isValidSocialLinkItem(listVal[0]))
+        && (listVal.size() < 2 || isValidSocialLinkItem(listVal[1]))
+        && (listVal.size() < 3 || isValidSocialLinkItem(listVal[2]))
+        && (listVal.size() < 4 || isValidSocialLinkItem(listVal[3]))
+        && (listVal.size() < 5 || isValidSocialLinkItem(listVal[4]));
+    }
+
+    function isValidSocialFieldValue(val) {
+      return isValidSocialAccountList(val) || isValidSocialUrl(val);
     }
 
     function isValidSocialLinks(links) {
       return links is map
-        && links.keys().hasAll(['facebook', 'instagram', 'tiktok', 'youtube', 'linkedin'])
-        && links.keys().hasOnly(['facebook', 'instagram', 'tiktok', 'youtube', 'linkedin'])
-        && isValidSocialUrl(links.facebook)
-        && isValidSocialUrl(links.instagram)
-        && isValidSocialUrl(links.tiktok)
-        && isValidSocialUrl(links.youtube)
-        && isValidSocialUrl(links.linkedin);
+        && links.keys().hasAll([
+          'facebook', 'instagram', 'tiktok', 'youtube',
+          'linkedin', 'x', 'snapchat', 'pinterest', 'gmail'
+        ])
+        && links.keys().hasOnly([
+          'facebook', 'instagram', 'tiktok', 'youtube',
+          'linkedin', 'x', 'snapchat', 'pinterest', 'gmail'
+        ])
+        && isValidSocialFieldValue(links.facebook)
+        && isValidSocialFieldValue(links.instagram)
+        && isValidSocialFieldValue(links.tiktok)
+        && isValidSocialFieldValue(links.youtube)
+        && isValidSocialFieldValue(links.linkedin)
+        && isValidSocialFieldValue(links.x)
+        && isValidSocialFieldValue(links.snapchat)
+        && isValidSocialFieldValue(links.pinterest)
+        && isValidSocialFieldValue(links.gmail);
     }
 
     function isValidProduct(data) {
@@ -152,18 +183,24 @@ service cloud.firestore {
 
     function isValidSocialSettings(data) {
       return data.keys().hasAll([
-          'facebook', 'instagram', 'tiktok', 'youtube', 'linkedin',
+          'facebook', 'instagram', 'tiktok', 'youtube',
+          'linkedin', 'x', 'snapchat', 'pinterest', 'gmail',
           'updatedBy', 'createdAt', 'updatedAt'
         ])
         && data.keys().hasOnly([
-          'facebook', 'instagram', 'tiktok', 'youtube', 'linkedin',
+          'facebook', 'instagram', 'tiktok', 'youtube',
+          'linkedin', 'x', 'snapchat', 'pinterest', 'gmail',
           'updatedBy', 'createdAt', 'updatedAt'
         ])
-        && isValidSocialUrl(data.facebook)
-        && isValidSocialUrl(data.instagram)
-        && isValidSocialUrl(data.tiktok)
-        && isValidSocialUrl(data.youtube)
-        && isValidSocialUrl(data.linkedin)
+        && isValidSocialFieldValue(data.facebook)
+        && isValidSocialFieldValue(data.instagram)
+        && isValidSocialFieldValue(data.tiktok)
+        && isValidSocialFieldValue(data.youtube)
+        && isValidSocialFieldValue(data.linkedin)
+        && isValidSocialFieldValue(data.x)
+        && isValidSocialFieldValue(data.snapchat)
+        && isValidSocialFieldValue(data.pinterest)
+        && isValidSocialFieldValue(data.gmail)
         && data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
@@ -175,6 +212,36 @@ service cloud.firestore {
         && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
         && data.role is string && data.role == 'admin'
         && data.createdAt is timestamp;
+    }
+
+    function isValidSeoSettings(data) {
+      return data.keys().hasAll([
+          'siteTitle', 'metaDescription', 'keywords', 'canonicalUrl',
+          'ogTitle', 'ogDescription', 'ogImage', 'robotsIndex',
+          'googleVerification', 'bingVerification', 'yandexVerification', 'baiduVerification',
+          'updatedBy', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'siteTitle', 'metaDescription', 'keywords', 'canonicalUrl',
+          'ogTitle', 'ogDescription', 'ogImage', 'robotsIndex',
+          'googleVerification', 'bingVerification', 'yandexVerification', 'baiduVerification',
+          'updatedBy', 'createdAt', 'updatedAt'
+        ])
+        && data.siteTitle is string && data.siteTitle.size() >= 1 && data.siteTitle.size() <= 120
+        && data.metaDescription is string && data.metaDescription.size() >= 1 && data.metaDescription.size() <= 320
+        && data.keywords is list && data.keywords.size() <= 30 && (data.keywords.size() == 0 || (data.keywords[0] is string && data.keywords[0].size() <= 60))
+        && data.canonicalUrl is string && data.canonicalUrl.size() <= 300 && (data.canonicalUrl == '' || data.canonicalUrl.matches('^https?://.*'))
+        && data.ogTitle is string && data.ogTitle.size() <= 120
+        && data.ogDescription is string && data.ogDescription.size() <= 320
+        && data.ogImage is string && data.ogImage.size() <= 100000
+        && data.robotsIndex is bool
+        && data.googleVerification is string && data.googleVerification.size() <= 120
+        && data.bingVerification is string && data.bingVerification.size() <= 120
+        && data.yandexVerification is string && data.yandexVerification.size() <= 120
+        && data.baiduVerification is string && data.baiduVerification.size() <= 120
+        && data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
     }
 
     // --- Collection: products ---
@@ -297,7 +364,39 @@ service cloud.firestore {
         && incoming().updatedAt == request.time
         && isAdmin()
         && incoming().diff(existing()).affectedKeys().hasOnly([
-          'facebook', 'instagram', 'tiktok', 'youtube', 'linkedin', 'updatedBy', 'updatedAt'
+          'facebook', 'instagram', 'tiktok', 'youtube',
+          'linkedin', 'x', 'snapchat', 'pinterest', 'gmail',
+          'updatedBy', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(settingId) && isAdmin();
+    }
+
+    // --- Collection: seoSettings ---
+    match /seoSettings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if false;
+
+      allow create: if isSignedIn()
+        && isValidId(settingId)
+        && isValidSeoSettings(incoming())
+        && incoming().updatedBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+
+      allow update: if isSignedIn()
+        && isValidId(settingId)
+        && isValidSeoSettings(incoming())
+        && incoming().updatedBy == request.auth.uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin()
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'siteTitle', 'metaDescription', 'keywords', 'canonicalUrl',
+          'ogTitle', 'ogDescription', 'ogImage', 'robotsIndex',
+          'googleVerification', 'bingVerification', 'yandexVerification', 'baiduVerification',
+          'updatedBy', 'updatedAt'
         ]);
 
       allow delete: if isSignedIn() && isValidId(settingId) && isAdmin();

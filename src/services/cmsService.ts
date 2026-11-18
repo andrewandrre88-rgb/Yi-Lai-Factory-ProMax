@@ -16,7 +16,13 @@ import {
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { PRODUCT_CATEGORIES, ProductVariant } from '../data/factoryData';
 import { BlogCategory, BlogPost, STARTER_BLOG_POSTS } from '../data/blogData';
-import { EMPTY_SOCIAL_LINKS, SocialMediaLinks } from '../components/SocialLinksBar';
+import {
+  EMPTY_SOCIAL_LINKS,
+  MAX_ACCOUNTS_PER_PLATFORM,
+  SOCIAL_PLATFORMS,
+  SocialMediaLinks,
+  SocialPlatformKey,
+} from '../components/SocialLinksBar';
 
 export type { SocialMediaLinks };
 
@@ -78,6 +84,69 @@ export interface BlogPostInput {
   socialLinks?: SocialMediaLinks;
 }
 
+export interface SeoSettings {
+  siteTitle: string;
+  metaDescription: string;
+  keywords: string[];
+  canonicalUrl: string;
+  ogTitle: string;
+  ogDescription: string;
+  ogImage: string;
+  robotsIndex: boolean;
+  googleVerification: string;
+  bingVerification: string;
+  yandexVerification: string;
+  baiduVerification: string;
+}
+
+export const DEFAULT_SEO_SETTINGS: SeoSettings = {
+  siteTitle: 'Yi Lai Plastics — Trigger Sprayers & Lotion Pumps',
+  metaDescription:
+    'Custom trigger sprayers, lotion pumps, fine mist atomizers, and bottle closures manufactured in Yuyao, Ningbo with direct FOB export.',
+  keywords: [
+    'trigger sprayer manufacturer',
+    'lotion pump factory',
+    'fine mist sprayer supplier',
+    'Yuyao plastic dispensers',
+    '28/410 trigger sprayer',
+    'OEM packaging Ningbo',
+    'foam trigger sprayer wholesale',
+    'bottle closure factory China',
+  ],
+  canonicalUrl: '',
+  ogTitle: 'Yi Lai Plastics — Trigger Sprayers & Lotion Pumps',
+  ogDescription:
+    'Custom trigger sprayers, lotion pumps, fine mist atomizers, and bottle closures manufactured in Yuyao, Ningbo with direct FOB export.',
+  ogImage: '/src/assets/images/product_trigger_sprayer_1795008502569.jpg',
+  robotsIndex: true,
+  googleVerification: '',
+  bingVerification: '',
+  yandexVerification: '',
+  baiduVerification: '',
+};
+
+export const RECOMMENDED_SEO_SETTINGS: SeoSettings = {
+  ...DEFAULT_SEO_SETTINGS,
+  siteTitle: 'Yi Lai Plastics — Trigger Sprayer & Pump Factory China',
+  metaDescription:
+    'ISO 9001 manufacturer of 28/410 trigger sprayers, lotion pumps, fine mist atomizers & closures in Yuyao, Ningbo. Fast tooling & direct FOB export.',
+  keywords: [
+    'trigger sprayer manufacturer China',
+    '28/410 trigger sprayer wholesale',
+    'lotion pump supplier Ningbo',
+    'fine mist atomizer factory',
+    'foam trigger dispenser OEM',
+    'plastic bottle closures Yuyao',
+    'custom Pantone trigger sprayer',
+    'chemical resistant 316 spring sprayer',
+    'Yi Lai Plastics Industry',
+    'FOB Ningbo packaging export',
+  ],
+  ogTitle: 'Yi Lai Plastics — Trigger Sprayer & Pump Factory China',
+  ogDescription:
+    'ISO 9001 manufacturer of 28/410 trigger sprayers, lotion pumps, fine mist atomizers & closures in Yuyao, Ningbo. Fast tooling & direct FOB export.',
+};
+
 const VALID_PRODUCT_CATEGORIES = new Set([
   'trigger-sprayers',
   'mini-triggers',
@@ -110,30 +179,69 @@ function clampStr(val: string, max: number, fallback = '-'): string {
   return trimmed.length > 0 ? trimmed : fallback;
 }
 
-function normalizeSocialUrl(raw: unknown): string {
+function normalizeSocialUrl(raw: unknown, platform?: SocialPlatformKey): string {
   if (typeof raw !== 'string') return '';
   const trimmed = raw.replace(/[\r\n]+/g, '').trim();
   if (!trimmed) return '';
   if (/^(javascript|data|vbscript):/i.test(trimmed)) return '';
+
+  if (platform === 'gmail') {
+    if (/^mailto:/i.test(trimmed)) {
+      return `mailto:${trimmed.slice(7).trim()}`.slice(0, 300);
+    }
+    if (/^https?:\/\//i.test(trimmed)) {
+      return trimmed.slice(0, 300);
+    }
+    if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) {
+      return `mailto:${trimmed}`.slice(0, 300);
+    }
+    return `https://${trimmed}`.slice(0, 300);
+  }
+
   const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   return withScheme.slice(0, 300);
 }
 
-export function normalizeSocialLinks(raw?: Partial<SocialMediaLinks> | null): SocialMediaLinks {
+function normalizePlatformList(rawValue: unknown, platform: SocialPlatformKey): string[] {
+  const rawList = Array.isArray(rawValue)
+    ? rawValue
+    : typeof rawValue === 'string'
+    ? [rawValue]
+    : [];
+
+  return rawList
+    .map((entry) => normalizeSocialUrl(entry, platform))
+    .filter(Boolean)
+    .slice(0, MAX_ACCOUNTS_PER_PLATFORM);
+}
+
+export function normalizeSocialLinks(
+  raw?: Partial<Record<SocialPlatformKey, unknown>> | null
+): SocialMediaLinks {
   return {
-    facebook: normalizeSocialUrl(raw?.facebook),
-    instagram: normalizeSocialUrl(raw?.instagram),
-    tiktok: normalizeSocialUrl(raw?.tiktok),
-    youtube: normalizeSocialUrl(raw?.youtube),
-    linkedin: normalizeSocialUrl(raw?.linkedin),
+    facebook: normalizePlatformList(raw?.facebook, 'facebook'),
+    instagram: normalizePlatformList(raw?.instagram, 'instagram'),
+    tiktok: normalizePlatformList(raw?.tiktok, 'tiktok'),
+    youtube: normalizePlatformList(raw?.youtube, 'youtube'),
+    linkedin: normalizePlatformList(raw?.linkedin, 'linkedin'),
+    x: normalizePlatformList(raw?.x, 'x'),
+    snapchat: normalizePlatformList(raw?.snapchat, 'snapchat'),
+    pinterest: normalizePlatformList(raw?.pinterest, 'pinterest'),
+    gmail: normalizePlatformList(raw?.gmail, 'gmail'),
   };
 }
 
+export function countSocialLinks(links?: SocialMediaLinks | null): number {
+  if (!links) return 0;
+  return SOCIAL_PLATFORMS.reduce((sum, p) => {
+    const val = links[p.key];
+    if (Array.isArray(val)) return sum + val.filter((u) => Boolean(u?.trim())).length;
+    return sum + (typeof val === 'string' && Boolean(String(val).trim()) ? 1 : 0);
+  }, 0);
+}
+
 export function hasAnySocialLink(links?: SocialMediaLinks | null): boolean {
-  if (!links) return false;
-  return Boolean(
-    links.facebook || links.instagram || links.tiktok || links.youtube || links.linkedin
-  );
+  return countSocialLinks(links) > 0;
 }
 
 function normalizeProductPayload(input: ProductInput, uid: string) {
@@ -314,6 +422,101 @@ export async function saveSocialLinks(
   const path = 'socialSettings/default';
   const ref = doc(db, 'socialSettings', 'default');
   const normalized = normalizeSocialLinks(links);
+
+  try {
+    const existingSnap = await getDoc(ref);
+    if (existingSnap.exists()) {
+      await updateDoc(ref, {
+        ...normalized,
+        updatedBy: uid,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      await setDoc(ref, {
+        ...normalized,
+        updatedBy: uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    return normalized;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export function normalizeSeoSettings(raw?: Partial<SeoSettings> | null): SeoSettings {
+  const cleanTitle = clampStr(
+    String(raw?.siteTitle ?? DEFAULT_SEO_SETTINGS.siteTitle),
+    120,
+    DEFAULT_SEO_SETTINGS.siteTitle
+  );
+  const cleanDesc = clampStr(
+    String(raw?.metaDescription ?? DEFAULT_SEO_SETTINGS.metaDescription),
+    320,
+    DEFAULT_SEO_SETTINGS.metaDescription
+  );
+
+  const keywords = Array.isArray(raw?.keywords)
+    ? raw.keywords
+        .map((k) => (typeof k === 'string' ? k.trim().slice(0, 60) : ''))
+        .filter(Boolean)
+        .slice(0, 30)
+    : [...DEFAULT_SEO_SETTINGS.keywords];
+
+  const rawCanonical = typeof raw?.canonicalUrl === 'string'
+    ? raw.canonicalUrl.replace(/[\r\n]+/g, '').trim()
+    : '';
+  const canonicalUrl = rawCanonical
+    ? /^(javascript|data|vbscript):/i.test(rawCanonical)
+      ? ''
+      : (/^https?:\/\//i.test(rawCanonical) ? rawCanonical : `https://${rawCanonical}`).slice(0, 300)
+    : '';
+
+  return {
+    siteTitle: cleanTitle,
+    metaDescription: cleanDesc,
+    keywords,
+    canonicalUrl,
+    ogTitle: typeof raw?.ogTitle === 'string' ? raw.ogTitle.trim().slice(0, 120) : cleanTitle.slice(0, 120),
+    ogDescription:
+      typeof raw?.ogDescription === 'string'
+        ? raw.ogDescription.trim().slice(0, 320)
+        : cleanDesc.slice(0, 320),
+    ogImage: typeof raw?.ogImage === 'string' ? raw.ogImage.trim().slice(0, 100000) : '',
+    robotsIndex: raw?.robotsIndex === false ? false : true,
+    googleVerification:
+      typeof raw?.googleVerification === 'string' ? raw.googleVerification.trim().slice(0, 120) : '',
+    bingVerification:
+      typeof raw?.bingVerification === 'string' ? raw.bingVerification.trim().slice(0, 120) : '',
+    yandexVerification:
+      typeof raw?.yandexVerification === 'string' ? raw.yandexVerification.trim().slice(0, 120) : '',
+    baiduVerification:
+      typeof raw?.baiduVerification === 'string' ? raw.baiduVerification.trim().slice(0, 120) : '',
+  };
+}
+
+export function subscribeSeoSettings(onData: (seo: SeoSettings) => void): Unsubscribe {
+  const path = 'seoSettings/default';
+  return onSnapshot(
+    doc(db, 'seoSettings', 'default'),
+    (snap) => {
+      if (!snap.exists()) {
+        onData({ ...DEFAULT_SEO_SETTINGS });
+        return;
+      }
+      onData(normalizeSeoSettings(snap.data() as Partial<SeoSettings>));
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.GET, path);
+    }
+  );
+}
+
+export async function saveSeoSettings(uid: string, input: SeoSettings): Promise<SeoSettings> {
+  const path = 'seoSettings/default';
+  const ref = doc(db, 'seoSettings', 'default');
+  const normalized = normalizeSeoSettings(input);
 
   try {
     const existingSnap = await getDoc(ref);

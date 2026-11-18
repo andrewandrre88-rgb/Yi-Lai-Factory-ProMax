@@ -20,6 +20,7 @@ import { ProductDetailPage } from './components/ProductDetailPage';
 import { BlogPage } from './components/BlogPage';
 import { DashboardPage } from './components/DashboardPage';
 import { ScrollDispenserRail } from './components/ScrollDispenserRail';
+import { SeoHeadManager } from './components/SeoHeadManager';
 import {
   LanguageCode,
   ProductCategory,
@@ -32,11 +33,14 @@ import { EMPTY_SOCIAL_LINKS, SocialMediaLinks } from './components/SocialLinksBa
 import {
   CmsProductRecord,
   cmsProductToVariant,
+  DEFAULT_SEO_SETTINGS,
+  SeoSettings,
   subscribeAdminBlogPosts,
   subscribeAdminProducts,
   subscribeCatalogSeeded,
   subscribePublicBlogPosts,
   subscribePublicProducts,
+  subscribeSeoSettings,
   subscribeSocialLinks,
 } from './services/cmsService';
 
@@ -59,6 +63,7 @@ export default function App() {
   const [firestoreProducts, setFirestoreProducts] = useState<CmsProductRecord[]>([]);
   const [firestoreBlogPosts, setFirestoreBlogPosts] = useState<BlogPost[]>([]);
   const [socialLinks, setSocialLinks] = useState<SocialMediaLinks>(EMPTY_SOCIAL_LINKS);
+  const [seoSettings, setSeoSettings] = useState<SeoSettings>(DEFAULT_SEO_SETTINGS);
 
   useEffect(() => {
     document.documentElement.dir = UI_TRANSLATIONS[lang].dir;
@@ -75,10 +80,12 @@ export default function App() {
       setCatalogConfigReady(loaded);
     });
     const unsubSocial = subscribeSocialLinks(setSocialLinks);
+    const unsubSeo = subscribeSeoSettings(setSeoSettings);
     return () => {
       unsubAuth();
       unsubSeed();
       unsubSocial();
+      unsubSeo();
     };
   }, []);
 
@@ -222,8 +229,23 @@ export default function App() {
     });
   };
 
+  const activeBlogPostDetail =
+    activePage === 'blog' && selectedBlogSlug
+      ? storefrontBlogPosts.find(
+          (p) => p.slug === selectedBlogSlug || p.id === selectedBlogSlug
+        ) ?? null
+      : null;
+
   return (
     <ErrorBoundary>
+      <SeoHeadManager
+        seo={seoSettings}
+        socialLinks={socialLinks}
+        lang={lang}
+        activePage={activePage}
+        activeProduct={activeProductDetail}
+        activePost={activeBlogPostDetail}
+      />
       <div className="min-h-screen flex flex-col bg-[#F6F9FE] text-[#0B1B3E]">
         <Header
           lang={lang}
@@ -244,6 +266,7 @@ export default function App() {
               products={firestoreProducts}
               blogPosts={storefrontBlogPosts}
               socialLinks={socialLinks}
+              seoSettings={seoSettings}
               onBackHome={() => navigateToPage('home', 'top')}
               onOpenProductsPage={() => navigateToPage('products')}
               onOpenBlogPage={(slug) => {

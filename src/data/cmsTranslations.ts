@@ -110,6 +110,40 @@ export interface CmsStrings {
   socialAutoAttachSub: string;
   socialNoLinksYet: string;
   socialManageShortcut: string;
+  socialAccountSlotLabel: string;
+  socialGmailHint: string;
+  dashTabSeo: string;
+  seoSectionTitle: string;
+  seoSectionSub: string;
+  seoScoreLabel: string;
+  seoApplyRecommendedBtn: string;
+  seoSaveBtn: string;
+  seoSavedMsg: string;
+  seoSerpPreviewTitle: string;
+  seoFieldTitle: string;
+  seoFieldTitleHint: string;
+  seoFieldDesc: string;
+  seoFieldDescHint: string;
+  seoFieldKeywords: string;
+  seoFieldKeywordsHint: string;
+  seoFieldCanonical: string;
+  seoFieldRobots: string;
+  seoFieldRobotsOn: string;
+  seoFieldRobotsOff: string;
+  seoSocialCardHeading: string;
+  seoFieldOgTitle: string;
+  seoFieldOgDesc: string;
+  seoFieldOgImage: string;
+  seoWebmastersHeading: string;
+  seoWebmastersSub: string;
+  seoGoogleLabel: string;
+  seoBingLabel: string;
+  seoYandexLabel: string;
+  seoBaiduLabel: string;
+  seoChecklistTitle: string;
+  seoSitemapHeading: string;
+  seoDownloadSitemapBtn: string;
+  seoDownloadRobotsBtn: string;
 }
 
 const CMS_STRINGS: Record<LanguageCode, CmsStrings> = {
@@ -227,14 +261,50 @@ const CMS_STRINGS: Record<LanguageCode, CmsStrings> = {
     dashTabSocial: 'Social Media Links',
     socialSectionTitle: 'Official Social Media Links',
     socialSectionSub:
-      'Save your Facebook, Instagram, TikTok, YouTube, and LinkedIn profiles once. Whenever you publish a new product or blog post, all saved social links are attached automatically.',
+      'Save up to 5 accounts per platform across Facebook, Instagram, TikTok, YouTube, LinkedIn, X (Twitter), Snapchat, Pinterest, and Gmail. Whenever you publish a new product or blog post, all saved links attach automatically.',
     socialSaveBtn: 'Save Social Links',
     socialSavedMsg: 'Social media links saved — ready for new products & blog posts.',
     socialAutoAttachLabel: 'Auto-Attached Social Media Links',
     socialAutoAttachSub:
-      'All saved social links are automatically attached to this post on publish.',
+      'All saved social accounts are automatically attached to this post on publish.',
     socialNoLinksYet: 'No social media links saved yet. Configure them in the Social Media Links tab.',
     socialManageShortcut: 'Edit social links',
+    socialAccountSlotLabel: 'Account',
+    socialGmailHint: 'Enter Gmail address or URL',
+    dashTabSeo: 'SEO',
+    seoSectionTitle: 'Search Engine Optimization (SEO) Studio',
+    seoSectionSub:
+      'Optimize your titles, meta descriptions, keywords, OpenGraph share cards, Schema.org structured data, and webmaster verification codes for Google, Bing, Yahoo, Yandex, DuckDuckGo, and Baidu.',
+    seoScoreLabel: 'SEO Health Score',
+    seoApplyRecommendedBtn: 'Apply Recommended SEO',
+    seoSaveBtn: 'Save & Publish SEO',
+    seoSavedMsg: 'SEO settings saved and applied live to search engine metadata.',
+    seoSerpPreviewTitle: 'Live Google & Search Engine Snippet Preview',
+    seoFieldTitle: 'Primary Meta Title *',
+    seoFieldTitleHint: 'Recommended: 30–60 characters',
+    seoFieldDesc: 'Meta Description *',
+    seoFieldDescHint: 'Recommended: 120–160 characters',
+    seoFieldKeywords: 'Target Search Keywords (comma separated)',
+    seoFieldKeywordsHint: 'Add 6–15 buyer search phrases (e.g. 28/410 trigger sprayer, lotion pump OEM)',
+    seoFieldCanonical: 'Preferred Canonical Domain URL (optional)',
+    seoFieldRobots: 'Search Engine Indexing',
+    seoFieldRobotsOn: 'Index & Follow All Pages (Recommended)',
+    seoFieldRobotsOff: 'Noindex (Hide from search engines)',
+    seoSocialCardHeading: 'OpenGraph & X Share Card',
+    seoFieldOgTitle: 'Social Share Title',
+    seoFieldOgDesc: 'Social Share Description',
+    seoFieldOgImage: 'Social Share Preview Image (OG Image)',
+    seoWebmastersHeading: 'Search Engine Webmaster Verification Codes',
+    seoWebmastersSub:
+      'Paste verification token codes from Search Console / Webmaster tools to verify site ownership automatically.',
+    seoGoogleLabel: 'Google Search Console Token',
+    seoBingLabel: 'Bing & Yahoo (msvalidate.01)',
+    seoYandexLabel: 'Yandex Webmaster Token',
+    seoBaiduLabel: 'Baidu Webmaster Token',
+    seoChecklistTitle: 'All-Search-Engine Ranking Audit',
+    seoSitemapHeading: 'Sitemap & Crawler Files',
+    seoDownloadSitemapBtn: 'Download Live sitemap.xml',
+    seoDownloadRobotsBtn: 'Download robots.txt',
   },
   es: {
     blogKicker: 'Diario de Fábrica · Ingeniería y Exportación',
@@ -350,14 +420,50 @@ const CMS_STRINGS: Record<LanguageCode, CmsStrings> = {
     dashTabSocial: 'Redes Sociales',
     socialSectionTitle: 'Redes Sociales Oficiales',
     socialSectionSub:
-      'Guarde sus enlaces de Facebook, Instagram, TikTok, YouTube y LinkedIn. Cada vez que publique un nuevo producto o artículo, se agregarán automáticamente todos sus enlaces.',
+      'Guarde hasta 5 cuentas por plataforma en Facebook, Instagram, TikTok, YouTube, LinkedIn, X (Twitter), Snapchat, Pinterest y Gmail. Al publicar un nuevo producto o artículo, se adjuntarán automáticamente.',
     socialSaveBtn: 'Guardar Redes Sociales',
     socialSavedMsg: 'Enlaces sociales guardados y activos para nuevas publicaciones.',
     socialAutoAttachLabel: 'Redes Sociales Adjuntas Automáticamente',
     socialAutoAttachSub:
-      'Todos sus enlaces sociales guardados se añadirán automáticamente al publicar.',
+      'Todas sus cuentas sociales guardadas se añadirán automáticamente al publicar.',
     socialNoLinksYet: 'Aún no hay redes guardadas. Configúrelas en la pestaña Redes Sociales.',
     socialManageShortcut: 'Editar redes',
+    socialAccountSlotLabel: 'Cuenta',
+    socialGmailHint: 'Correo Gmail o enlace',
+    dashTabSeo: 'SEO',
+    seoSectionTitle: 'Centro de Posicionamiento SEO',
+    seoSectionSub:
+      'Optimice títulos, metadescripciones, palabras clave, tarjetas OpenGraph, datos estructurados Schema.org y verificación en Google, Bing, Yahoo, Yandex, DuckDuckGo y Baidu.',
+    seoScoreLabel: 'Puntuación SEO',
+    seoApplyRecommendedBtn: 'Aplicar SEO Recomendado',
+    seoSaveBtn: 'Guardar y Publicar SEO',
+    seoSavedMsg: 'Configuración SEO guardada y aplicada en vivo al sitio.',
+    seoSerpPreviewTitle: 'Vista Previa en Resultados de Búsqueda',
+    seoFieldTitle: 'Título SEO Principal *',
+    seoFieldTitleHint: 'Recomendado: 30–60 caracteres',
+    seoFieldDesc: 'Metadescripción *',
+    seoFieldDescHint: 'Recomendado: 120–160 caracteres',
+    seoFieldKeywords: 'Palabras Clave Objetivo (separadas por comas)',
+    seoFieldKeywordsHint: 'Incluya 6–15 términos de búsqueda de compradores industriales',
+    seoFieldCanonical: 'URL Canónica Preferida (opcional)',
+    seoFieldRobots: 'Indexación en Buscadores',
+    seoFieldRobotsOn: 'Indexar y Seguir Todas las Páginas (Recomendado)',
+    seoFieldRobotsOff: 'Noindex (Ocultar de buscadores)',
+    seoSocialCardHeading: 'Tarjeta Social OpenGraph y X',
+    seoFieldOgTitle: 'Título para Redes Sociales',
+    seoFieldOgDesc: 'Descripción para Redes Sociales',
+    seoFieldOgImage: 'Imagen de Vista Previa (OG Image)',
+    seoWebmastersHeading: 'Códigos de Verificación Webmaster',
+    seoWebmastersSub:
+      'Pegue los códigos de verificación de Google, Bing/Yahoo, Yandex o Baidu para validar la propiedad automáticamente.',
+    seoGoogleLabel: 'Token Google Search Console',
+    seoBingLabel: 'Token Bing y Yahoo (msvalidate.01)',
+    seoYandexLabel: 'Token Yandex Webmaster',
+    seoBaiduLabel: 'Token Baidu Webmaster',
+    seoChecklistTitle: 'Auditoría para Todos los Buscadores',
+    seoSitemapHeading: 'Archivos Sitemap y Rastreo',
+    seoDownloadSitemapBtn: 'Descargar sitemap.xml en vivo',
+    seoDownloadRobotsBtn: 'Descargar robots.txt',
   },
   ar: {
     blogKicker: 'مدونة المصنع · الهندسة والتصدير',
@@ -473,14 +579,50 @@ const CMS_STRINGS: Record<LanguageCode, CmsStrings> = {
     dashTabSocial: 'روابط التواصل الاجتماعي',
     socialSectionTitle: 'روابط حسابات التواصل الاجتماعي',
     socialSectionSub:
-      'احفظ روابط Facebook و Instagram و TikTok و YouTube و LinkedIn مرة واحدة، وسيتم إضافتها تلقائياً مع كل منتج أو مقال جديد تنشره.',
+      'احفظ حتى 5 حسابات لكل منصة عبر Facebook و Instagram و TikTok و YouTube و LinkedIn و X (Twitter) و Snapchat و Pinterest و Gmail، وسيتم إضافتها تلقائياً مع كل منتج أو مقال جديد.',
     socialSaveBtn: 'حفظ روابط التواصل',
     socialSavedMsg: 'تم حفظ روابط التواصل وهي مفعّلة للمنتجات والمقالات الجديدة.',
     socialAutoAttachLabel: 'روابط التواصل المرفقة تلقائياً',
     socialAutoAttachSub:
-      'سيتم إرفاق جميع روابط التواصل المحفوظة تلقائياً عند النشر.',
+      'سيتم إرفاق جميع الحسابات المحفوظة تلقائياً عند النشر.',
     socialNoLinksYet: 'لم يتم حفظ روابط تواصل بعد. أضفها من تبويب روابط التواصل الاجتماعي.',
     socialManageShortcut: 'تعديل الروابط',
+    socialAccountSlotLabel: 'حساب',
+    socialGmailHint: 'أدخل بريد Gmail أو رابط',
+    dashTabSeo: 'SEO',
+    seoSectionTitle: 'مركز تحسين محركات البحث (SEO)',
+    seoSectionSub:
+      'حسّن العناوين والأوصاف التعريفية والكلمات المفتاحية وبطاقات المشاركة والبيانات المهيكلة Schema.org ورموز التحقق لتصدّر نتائج Google و Bing و Yahoo و Yandex و Baidu.',
+    seoScoreLabel: 'نقاط قوة السيو',
+    seoApplyRecommendedBtn: 'تطبيق إعدادات السيو المقترحة',
+    seoSaveBtn: 'حفظ ونشر السيو',
+    seoSavedMsg: 'تم حفظ إعدادات السيو وتطبيقها مباشرة على الموقع.',
+    seoSerpPreviewTitle: 'معاينة النتيجة في محركات البحث',
+    seoFieldTitle: 'العنوان التعريفي الرئيسي *',
+    seoFieldTitleHint: 'الموصى به: 30 إلى 60 حرفاً',
+    seoFieldDesc: 'الوصف التعريفي (Meta Description) *',
+    seoFieldDescHint: 'الموصى به: 120 إلى 160 حرفاً',
+    seoFieldKeywords: 'الكلمات المفتاحية المستهدفة (مفصولة بفاصلة)',
+    seoFieldKeywordsHint: 'أضف من 6 إلى 15 عبارة بحث تجارية يستخدمها المستوردون',
+    seoFieldCanonical: 'الرابط الأساسي Canonical URL (اختياري)',
+    seoFieldRobots: 'الأرشفة في محركات البحث',
+    seoFieldRobotsOn: 'أرشفة ومتابعة جميع الصفحات (موصى به)',
+    seoFieldRobotsOff: 'عدم الأرشفة (Noindex)',
+    seoSocialCardHeading: 'بطاقة المشاركة OpenGraph و X',
+    seoFieldOgTitle: 'عنوان المشاركة الاجتماعية',
+    seoFieldOgDesc: 'وصف المشاركة الاجتماعية',
+    seoFieldOgImage: 'صورة المشاركة الاجتماعية (OG Image)',
+    seoWebmastersHeading: 'رموز توثيق أدوات مشرفي المواقع',
+    seoWebmastersSub:
+      'أدخل رموز التحقق من Google Search Console و Bing و Yandex و Baidu لتأكيد الملكية تلقائياً.',
+    seoGoogleLabel: 'رمز Google Search Console',
+    seoBingLabel: 'رمز Bing و Yahoo (msvalidate.01)',
+    seoYandexLabel: 'رمز Yandex Webmaster',
+    seoBaiduLabel: 'رمز Baidu Webmaster',
+    seoChecklistTitle: 'فحص الترتيب عبر جميع المحركات',
+    seoSitemapHeading: 'ملفات خريطة الموقع والزحف',
+    seoDownloadSitemapBtn: 'تحميل sitemap.xml المحدّث',
+    seoDownloadRobotsBtn: 'تحميل robots.txt',
   },
 };
 

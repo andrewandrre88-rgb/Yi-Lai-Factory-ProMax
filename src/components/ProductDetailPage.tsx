@@ -5,6 +5,7 @@ import { LanguageCode, ProductCategory, ProductVariant } from '../data/factoryDa
 import { getAppStrings } from '../data/translations';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { SocialLinksBar, SocialMediaLinks } from './SocialLinksBar';
+import { hasAnySocialLink } from '../services/cmsService';
 import {
   buildWhatsAppUrl,
   WHATSAPP_NUMBER_DISPLAY,
@@ -327,8 +328,7 @@ export function ProductDetailPage({
 
             <SocialLinksBar
               links={
-                variant.socialLinks &&
-                Object.values(variant.socialLinks).some((v) => Boolean(v?.trim()))
+                hasAnySocialLink(variant.socialLinks)
                   ? variant.socialLinks
                   : globalSocialLinks
               }

@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Edit3,
   ExternalLink,
+  Globe,
   ImagePlus,
   Layers,
   Loader2,
@@ -35,6 +36,7 @@ import { getCmsStrings } from '../data/cmsTranslations';
 import {
   BlogPostInput,
   CmsProductRecord,
+  countSocialLinks,
   deleteBlogPost,
   deleteProduct,
   hasAnySocialLink,
@@ -44,6 +46,7 @@ import {
   saveProduct,
   saveSocialLinks,
   seedStarterContent,
+  SeoSettings,
   SocialMediaLinks,
 } from '../services/cmsService';
 import {
@@ -51,11 +54,14 @@ import {
   uploadDashboardImage,
 } from '../services/imageUploadService';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { computeSeoAudit, SeoDashboardSection } from './SeoDashboardSection';
 import {
   EMPTY_SOCIAL_LINKS,
+  MAX_ACCOUNTS_PER_PLATFORM,
   SOCIAL_PLATFORMS,
   SocialLinksBar,
   SocialPlatformIcon,
+  SocialPlatformKey,
 } from './SocialLinksBar';
 
 interface DashboardPageProps {
@@ -68,12 +74,13 @@ interface DashboardPageProps {
   products: CmsProductRecord[];
   blogPosts: BlogPost[];
   socialLinks: SocialMediaLinks;
+  seoSettings: SeoSettings;
   onBackHome: () => void;
   onOpenProductsPage: () => void;
   onOpenBlogPage: (slug?: string | null) => void;
 }
 
-type DashboardTab = 'products' | 'blog' | 'social';
+type DashboardTab = 'products' | 'blog' | 'social' | 'seo';
 
 const EMPTY_PRODUCT_FORM: ProductInput = {
   categoryId: 'trigger-sprayers',
@@ -118,6 +125,7 @@ export function DashboardPage({
   products,
   blogPosts,
   socialLinks,
+  seoSettings,
   onBackHome,
   onOpenProductsPage,
   onOpenBlogPage,
@@ -137,8 +145,20 @@ export function DashboardPage({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
 
+  const padSocialForm = (links: SocialMediaLinks): SocialMediaLinks => {
+    const padded = { ...EMPTY_SOCIAL_LINKS };
+    for (const p of SOCIAL_PLATFORMS) {
+      const existing = Array.isArray(links[p.key]) ? links[p.key] : [];
+      padded[p.key] = Array.from(
+        { length: MAX_ACCOUNTS_PER_PLATFORM },
+        (_, idx) => existing[idx] ?? ''
+      );
+    }
+    return padded;
+  };
+
   // Social media links form state
-  const [socialForm, setSocialForm] = useState<SocialMediaLinks>(EMPTY_SOCIAL_LINKS);
+  const [socialForm, setSocialForm] = useState<SocialMediaLinks>(() => padSocialForm(EMPTY_SOCIAL_LINKS));
   const [savingSocial, setSavingSocial] = useState(false);
 
   // Product editor modal state
@@ -162,7 +182,7 @@ export function DashboardPage({
   const [isDraggingCover, setIsDraggingCover] = useState(false);
 
   useEffect(() => {
-    setSocialForm({ ...socialLinks });
+    setSocialForm(padSocialForm(socialLinks));
   }, [socialLinks]);
 
   useEffect(() => {
@@ -274,7 +294,7 @@ export function DashboardPage({
     setFeedback(null);
     try {
       const saved = await saveSocialLinks(user.uid, socialForm);
-      setSocialForm(saved);
+      setSocialForm(padSocialForm(saved));
       setFeedback({ type: 'success', text: s.socialSavedMsg });
     } catch (err) {
       setFeedback({
@@ -284,6 +304,24 @@ export function DashboardPage({
     } finally {
       setSavingSocial(false);
     }
+  };
+
+  const handleSocialSlotChange = (
+    platformKey: SocialPlatformKey,
+    slotIdx: number,
+    nextVal: string
+  ) => {
+    setSocialForm((prev) => {
+      const slots = Array.from(
+        { length: MAX_ACCOUNTS_PER_PLATFORM },
+        (_, i) => prev[platformKey]?.[i] ?? ''
+      );
+      slots[slotIdx] = nextVal;
+      return {
+        ...prev,
+        [platformKey]: slots,
+      };
+    });
   };
 
   // --- Product Handlers ---
@@ -937,12 +975,38 @@ export function DashboardPage({
               >
                 <Share2 className="w-4 h-4" />
                 <span>
-                  {s.dashTabSocial} ({SOCIAL_PLATFORMS.filter((p) => Boolean(socialLinks[p.key])).length}/5)
+                  {s.dashTabSocial} ({countSocialLinks(socialLinks)})
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('seo');
+                  setConfirmDeleteId(null);
+                }}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${
+                  activeTab === 'seo'
+                    ? 'bg-[#0B1B3E] text-white shadow-xs'
+                    : 'text-slate-600 hover:text-[#0B1B3E]'
+                }`}
+              >
+                <Globe className="w-4 h-4" />
+                <span>
+                  {s.dashTabSeo} (
+                  {
+                    computeSeoAudit(
+                      seoSettings,
+                      socialLinks,
+                      activeProductsCount,
+                      publishedPostsCount
+                    ).score
+                  }
+                  %)
                 </span>
               </button>
             </div>
 
-            {activeTab !== 'social' && (
+            {activeTab !== 'social' && activeTab !== 'seo' && (
               <div className="flex flex-wrap items-center gap-3 flex-1 justify-end">
                 <div className="relative flex-1 min-w-[220px] max-w-sm">
                   <Search className="w-4 h-4 text-slate-400 absolute start-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -997,8 +1061,19 @@ export function DashboardPage({
           </div>
         </div>
 
-        {/* --- Social Media Links Tab Section --- */}
-        {activeTab === 'social' ? (
+        {/* --- SEO Tab Section --- */}
+        {activeTab === 'seo' ? (
+          <SeoDashboardSection
+            lang={lang}
+            userUid={user?.uid ?? ''}
+            seoSettings={seoSettings}
+            socialLinks={socialLinks}
+            products={products}
+            blogPosts={blogPosts}
+            onFeedback={setFeedback}
+          />
+        ) : /* --- Social Media Links Tab Section --- */
+        activeTab === 'social' ? (
           <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
               <div>
@@ -1009,44 +1084,73 @@ export function DashboardPage({
                   {s.socialSectionSub}
                 </p>
               </div>
-              <span className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-blue-50 text-[#155EEF] text-xs font-semibold border border-blue-200/70 shrink-0">
+              <span className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-blue-50 text-[#155EEF] text-xs font-semibold border border-blue-200/70 shrink-0 font-mono tabular-nums">
                 <Share2 className="w-3.5 h-3.5" />
                 <span>
-                  {SOCIAL_PLATFORMS.filter((p) => Boolean(socialLinks[p.key])).length} / 5
+                  {countSocialLinks(socialLinks)} / {SOCIAL_PLATFORMS.length * MAX_ACCOUNTS_PER_PLATFORM}
                 </span>
               </span>
             </div>
 
             <form onSubmit={handleSaveSocialLinks} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {SOCIAL_PLATFORMS.map((platform) => (
-                  <div
-                    key={platform.key}
-                    className="rounded-2xl border border-slate-200/90 bg-[#F8FAFE] p-4 space-y-2"
-                  >
-                    <label
-                      htmlFor={`social-input-${platform.key}`}
-                      className="flex items-center gap-2 text-xs font-bold text-[#0B1B3E]"
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {SOCIAL_PLATFORMS.map((platform) => {
+                  const slots = Array.from(
+                    { length: MAX_ACCOUNTS_PER_PLATFORM },
+                    (_, idx) => socialForm[platform.key]?.[idx] ?? ''
+                  );
+                  const filledCount = slots.filter((v) => Boolean(v.trim())).length;
+
+                  return (
+                    <div
+                      key={platform.key}
+                      className="rounded-2xl border border-slate-200/90 bg-[#F8FAFE] p-4 sm:p-5 space-y-3"
                     >
-                      <SocialPlatformIcon
-                        platform={platform.key}
-                        className={`w-4 h-4 ${platform.accentText}`}
-                      />
-                      <span>{platform.label}</span>
-                    </label>
-                    <input
-                      id={`social-input-${platform.key}`}
-                      type="url"
-                      dir="ltr"
-                      value={socialForm[platform.key]}
-                      onChange={(e) =>
-                        setSocialForm({ ...socialForm, [platform.key]: e.target.value })
-                      }
-                      placeholder={platform.placeholder}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-mono text-[#0B1B3E] placeholder:text-slate-400 focus:outline-none focus:border-[#155EEF]"
-                    />
-                  </div>
-                ))}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-sm font-bold text-[#0B1B3E]">
+                          <SocialPlatformIcon
+                            platform={platform.key}
+                            className={`w-4 h-4 ${platform.accentText}`}
+                          />
+                          <span>{platform.label}</span>
+                        </div>
+                        <span className="font-mono text-[11px] font-semibold text-slate-500 tabular-nums">
+                          {filledCount} / {MAX_ACCOUNTS_PER_PLATFORM}
+                        </span>
+                      </div>
+
+                      {platform.key === 'gmail' && (
+                        <p className="text-[11px] text-slate-500">{s.socialGmailHint}</p>
+                      )}
+
+                      <div className="space-y-2">
+                        {slots.map((slotVal, slotIdx) => (
+                          <div key={`${platform.key}-${slotIdx}`} className="flex items-center gap-2">
+                            <label
+                              htmlFor={`social-input-${platform.key}-${slotIdx}`}
+                              className="font-mono text-[11px] font-semibold text-slate-500 w-7 shrink-0 text-end tabular-nums"
+                            >
+                              #{slotIdx + 1}
+                            </label>
+                            <input
+                              id={`social-input-${platform.key}-${slotIdx}`}
+                              type="text"
+                              inputMode={platform.key === 'gmail' ? 'email' : 'url'}
+                              dir="ltr"
+                              value={slotVal}
+                              onChange={(e) =>
+                                handleSocialSlotChange(platform.key, slotIdx, e.target.value)
+                              }
+                              aria-label={`${platform.label} ${s.socialAccountSlotLabel} ${slotIdx + 1}`}
+                              placeholder={`${platform.placeholder} (${s.socialAccountSlotLabel} ${slotIdx + 1})`}
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-mono text-[#0B1B3E] placeholder:text-slate-400 focus:outline-none focus:border-[#155EEF]"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {hasAnySocialLink(socialForm) && (

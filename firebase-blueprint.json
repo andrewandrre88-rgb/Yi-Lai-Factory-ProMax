@@ -105,7 +105,7 @@
         },
         "socialLinks": {
           "type": "object",
-          "description": "Auto-attached social media links (Facebook, Instagram, TikTok, YouTube, LinkedIn)."
+          "description": "Auto-attached social media links (up to 5 accounts per platform across Facebook, Instagram, TikTok, YouTube, LinkedIn, X, Snapchat, Pinterest, and Gmail)."
         },
         "authorUid": {
           "type": "string",
@@ -225,7 +225,7 @@
         },
         "socialLinks": {
           "type": "object",
-          "description": "Auto-attached social media links (Facebook, Instagram, TikTok, YouTube, LinkedIn)."
+          "description": "Auto-attached social media links (up to 5 accounts per platform across Facebook, Instagram, TikTok, YouTube, LinkedIn, X, Snapchat, Pinterest, and Gmail)."
         },
         "authorUid": {
           "type": "string",
@@ -317,38 +317,44 @@
     },
     "SocialSettings": {
       "title": "Company Social Media Links Settings",
-      "description": "Saved official social media links automatically attached to newly published products and blog articles.",
+      "description": "Saved official social media accounts (up to 5 per platform) automatically attached to newly published products and blog articles.",
       "type": "object",
       "properties": {
         "facebook": {
-          "type": "string",
-          "minLength": 0,
-          "maxLength": 300,
-          "description": "Official Facebook page URL."
+          "type": "array",
+          "description": "Up to 5 official Facebook page URLs."
         },
         "instagram": {
-          "type": "string",
-          "minLength": 0,
-          "maxLength": 300,
-          "description": "Official Instagram profile URL."
+          "type": "array",
+          "description": "Up to 5 official Instagram profile URLs."
         },
         "tiktok": {
-          "type": "string",
-          "minLength": 0,
-          "maxLength": 300,
-          "description": "Official TikTok profile URL."
+          "type": "array",
+          "description": "Up to 5 official TikTok profile URLs."
         },
         "youtube": {
-          "type": "string",
-          "minLength": 0,
-          "maxLength": 300,
-          "description": "Official YouTube channel URL."
+          "type": "array",
+          "description": "Up to 5 official YouTube channel URLs."
         },
         "linkedin": {
-          "type": "string",
-          "minLength": 0,
-          "maxLength": 300,
-          "description": "Official LinkedIn company page URL."
+          "type": "array",
+          "description": "Up to 5 official LinkedIn company page URLs."
+        },
+        "x": {
+          "type": "array",
+          "description": "Up to 5 official X (Twitter) profile URLs."
+        },
+        "snapchat": {
+          "type": "array",
+          "description": "Up to 5 official Snapchat profile URLs."
+        },
+        "pinterest": {
+          "type": "array",
+          "description": "Up to 5 official Pinterest profile URLs."
+        },
+        "gmail": {
+          "type": "array",
+          "description": "Up to 5 official Gmail email addresses or contact links."
         },
         "updatedBy": {
           "type": "string",
@@ -374,6 +380,119 @@
         "tiktok",
         "youtube",
         "linkedin",
+        "x",
+        "snapchat",
+        "pinterest",
+        "gmail",
+        "updatedBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SeoSettings": {
+      "title": "Search Engine Optimization Settings",
+      "description": "Global SEO titles, descriptions, keywords, OpenGraph cards, canonical URL, and search engine verification codes.",
+      "type": "object",
+      "properties": {
+        "siteTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Primary HTML title and OpenGraph fallback headline."
+        },
+        "metaDescription": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 320,
+          "description": "Search engine snippet meta description."
+        },
+        "keywords": {
+          "type": "array",
+          "description": "Target search engine keywords (up to 30 strings)."
+        },
+        "canonicalUrl": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 300,
+          "description": "Optional preferred canonical domain URL."
+        },
+        "ogTitle": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "OpenGraph and X card share title."
+        },
+        "ogDescription": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 320,
+          "description": "OpenGraph and X card share description."
+        },
+        "ogImage": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 100000,
+          "description": "Social preview image URL, studio path, or compressed image data URL."
+        },
+        "robotsIndex": {
+          "type": "boolean",
+          "description": "Controls index, follow vs noindex directives across search engines."
+        },
+        "googleVerification": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Google Search Console verification code."
+        },
+        "bingVerification": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Bing / Yahoo Webmaster Tools verification code."
+        },
+        "yandexVerification": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Yandex Webmaster verification code."
+        },
+        "baiduVerification": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Baidu Webmaster verification code."
+        },
+        "updatedBy": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of admin who updated SEO settings."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of update."
+        }
+      },
+      "required": [
+        "siteTitle",
+        "metaDescription",
+        "keywords",
+        "canonicalUrl",
+        "ogTitle",
+        "ogDescription",
+        "ogImage",
+        "robotsIndex",
+        "googleVerification",
+        "bingVerification",
+        "yandexVerification",
+        "baiduVerification",
         "updatedBy",
         "createdAt",
         "updatedAt"
@@ -400,6 +519,10 @@
     "/socialSettings/{settingId}": {
       "schema": { "$ref": "#/entities/SocialSettings" },
       "description": "Saved official social media links readable publicly and writable only by verified admins."
+    },
+    "/seoSettings/{settingId}": {
+      "schema": { "$ref": "#/entities/SeoSettings" },
+      "description": "Search engine optimization configuration readable publicly and writable only by verified admins."
     }
   }
 }

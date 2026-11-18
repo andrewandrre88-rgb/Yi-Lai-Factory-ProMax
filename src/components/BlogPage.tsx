@@ -16,6 +16,7 @@ import { BLOG_CATEGORIES, BlogCategory, BlogPost } from '../data/blogData';
 import { getCmsStrings } from '../data/cmsTranslations';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { SocialLinksBar, SocialMediaLinks } from './SocialLinksBar';
+import { hasAnySocialLink } from '../services/cmsService';
 
 interface BlogPageProps {
   lang: LanguageCode;
@@ -159,8 +160,7 @@ export function BlogPage({
           <div className="mt-6">
             <SocialLinksBar
               links={
-                activePost.socialLinks &&
-                Object.values(activePost.socialLinks).some((v) => Boolean(v?.trim()))
+                hasAnySocialLink(activePost.socialLinks)
                   ? activePost.socialLinks
                   : globalSocialLinks
               }
