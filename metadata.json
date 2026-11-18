@@ -1,0 +1,6 @@
+{
+  "name": "Yi Lai Plastics Industry",
+  "description": "Precision trigger sprayers, lotion pumps, fine mist sprayers, and custom closures engineered and moulded in-house in Yuyao, Ningbo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

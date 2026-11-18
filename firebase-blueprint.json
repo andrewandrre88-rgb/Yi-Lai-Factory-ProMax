@@ -1,0 +1,405 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Dispensing Product Model",
+      "description": "Manufacturing specification and media entry for a trigger sprayer, lotion pump, fine mist sprayer, or closure SKU.",
+      "type": "object",
+      "properties": {
+        "categoryId": {
+          "type": "string",
+          "enum": [
+            "trigger-sprayers",
+            "mini-triggers",
+            "foam-triggers",
+            "lotion-pumps",
+            "fine-mist-sprayers",
+            "bottle-caps-closures"
+          ],
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Parent dispensing category slug."
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "URL-safe model identifier slug."
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140,
+          "description": "Product model code and display title."
+        },
+        "neckFinish": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Supported SPI neck finish sizes."
+        },
+        "dosage": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Output volume per stroke or orifice spec."
+        },
+        "closureStyle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Closure collar texture and locking style."
+        },
+        "springType": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Internal or external spring and valve material."
+        },
+        "moq": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Minimum order quantity."
+        },
+        "materials": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Resin and gasket component grade."
+        },
+        "leadTime": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Standard factory production lead time."
+        },
+        "applications": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "Recommended end-use liquid formulations."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "Engineering overview and performance description."
+        },
+        "features": {
+          "type": "array",
+          "description": "Key technical bullet highlights (1 to 10 items)."
+        },
+        "galleryUrls": {
+          "type": "array",
+          "description": "Image paths or URLs for product gallery (1 to 6 items)."
+        },
+        "galleryLabels": {
+          "type": "array",
+          "description": "Short captions paired with galleryUrls (1 to 6 items)."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "archived"],
+          "description": "Publication visibility on the storefront catalogue."
+        },
+        "socialLinks": {
+          "type": "object",
+          "description": "Auto-attached social media links (Facebook, Instagram, TikTok, YouTube, LinkedIn)."
+        },
+        "authorUid": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Authenticated admin UID who created the record."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last modification."
+        }
+      },
+      "required": [
+        "categoryId",
+        "slug",
+        "model",
+        "neckFinish",
+        "dosage",
+        "closureStyle",
+        "springType",
+        "moq",
+        "materials",
+        "leadTime",
+        "applications",
+        "description",
+        "features",
+        "galleryUrls",
+        "galleryLabels",
+        "status",
+        "authorUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BlogPost": {
+      "title": "Factory Journal & Packaging Blog Post",
+      "description": "Educational article, factory update, or technical packaging guide published on the Blog page.",
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "URL-safe article slug."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 180,
+          "description": "Article headline."
+        },
+        "excerpt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400,
+          "description": "Short summary card preview."
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 12000,
+          "description": "Full multi-paragraph article body."
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "Engineering",
+            "Manufacturing",
+            "Quality Control",
+            "Packaging Trends",
+            "Export & Logistics"
+          ],
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Editorial topic classification."
+        },
+        "coverImage": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100000,
+          "description": "Cover photo path, Storage URL, or compressed image data URL."
+        },
+        "authorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Display name of the article author or engineering team."
+        },
+        "readTime": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Estimated reading time label."
+        },
+        "tags": {
+          "type": "array",
+          "description": "Article topic keywords (0 to 8 strings)."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["published", "draft"],
+          "description": "Visibility state of the post."
+        },
+        "publishedAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Display date string (YYYY-MM-DD)."
+        },
+        "socialLinks": {
+          "type": "object",
+          "description": "Auto-attached social media links (Facebook, Instagram, TikTok, YouTube, LinkedIn)."
+        },
+        "authorUid": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Authenticated admin UID who created the record."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last modification."
+        }
+      },
+      "required": [
+        "slug",
+        "title",
+        "excerpt",
+        "content",
+        "category",
+        "coverImage",
+        "authorName",
+        "readTime",
+        "tags",
+        "status",
+        "publishedAt",
+        "authorUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SiteConfig": {
+      "title": "Site Catalog Initialization Config",
+      "description": "Tracks whether the baseline dispensing catalogue and starter blog posts have been seeded into Firestore.",
+      "type": "object",
+      "properties": {
+        "seeded": {
+          "type": "boolean",
+          "description": "Indicates starter data has been initialized in Firestore."
+        },
+        "updatedBy": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of admin who performed initialization."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of update."
+        }
+      },
+      "required": ["seeded", "updatedBy", "createdAt", "updatedAt"]
+    },
+    "AdminUser": {
+      "title": "Authorized Factory Administrator",
+      "description": "Explicit RBAC document granting dashboard management permissions.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 200,
+          "description": "Admin email address."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin"],
+          "description": "Assigned role."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of assignment."
+        }
+      },
+      "required": ["email", "role", "createdAt"]
+    },
+    "SocialSettings": {
+      "title": "Company Social Media Links Settings",
+      "description": "Saved official social media links automatically attached to newly published products and blog articles.",
+      "type": "object",
+      "properties": {
+        "facebook": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 300,
+          "description": "Official Facebook page URL."
+        },
+        "instagram": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 300,
+          "description": "Official Instagram profile URL."
+        },
+        "tiktok": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 300,
+          "description": "Official TikTok profile URL."
+        },
+        "youtube": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 300,
+          "description": "Official YouTube channel URL."
+        },
+        "linkedin": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 300,
+          "description": "Official LinkedIn company page URL."
+        },
+        "updatedBy": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of admin who updated social links."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of update."
+        }
+      },
+      "required": [
+        "facebook",
+        "instagram",
+        "tiktok",
+        "youtube",
+        "linkedin",
+        "updatedBy",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Managed dispensing product catalogue documents readable publicly when active and writable only by verified admins."
+    },
+    "/blogPosts/{postId}": {
+      "schema": { "$ref": "#/entities/BlogPost" },
+      "description": "Factory news and dispensing engineering articles readable publicly when published and writable only by verified admins."
+    },
+    "/siteConfig/{configId}": {
+      "schema": { "$ref": "#/entities/SiteConfig" },
+      "description": "Initialization flags for starter catalog seeding."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Factory admin role registry."
+    },
+    "/socialSettings/{settingId}": {
+      "schema": { "$ref": "#/entities/SocialSettings" },
+      "description": "Saved official social media links readable publicly and writable only by verified admins."
+    }
+  }
+}

@@ -1,0 +1,306 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Catch-All Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Token-only verified primary admin check (zero DB reads for safe allow list queries)
+    function isPrimaryAdmin() {
+      return isSignedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() == 'vvx71336@gmail.com';
+    }
+
+    // Full admin check for single-document reads and mutations
+    function isAdmin() {
+      return isPrimaryAdmin()
+        || (isSignedIn()
+            && request.auth.token.email_verified == true
+            && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isValidProductCategory(cat) {
+      return cat in [
+        'trigger-sprayers',
+        'mini-triggers',
+        'foam-triggers',
+        'lotion-pumps',
+        'fine-mist-sprayers',
+        'bottle-caps-closures'
+      ];
+    }
+
+    function isValidSocialUrl(url) {
+      return url is string
+        && url.size() <= 300
+        && (url == '' || url.matches('^https?://.*'));
+    }
+
+    function isValidSocialLinks(links) {
+      return links is map
+        && links.keys().hasAll(['facebook', 'instagram', 'tiktok', 'youtube', 'linkedin'])
+        && links.keys().hasOnly(['facebook', 'instagram', 'tiktok', 'youtube', 'linkedin'])
+        && isValidSocialUrl(links.facebook)
+        && isValidSocialUrl(links.instagram)
+        && isValidSocialUrl(links.tiktok)
+        && isValidSocialUrl(links.youtube)
+        && isValidSocialUrl(links.linkedin);
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll([
+          'categoryId', 'slug', 'model', 'neckFinish', 'dosage', 'closureStyle',
+          'springType', 'moq', 'materials', 'leadTime', 'applications', 'description',
+          'features', 'galleryUrls', 'galleryLabels', 'status', 'authorUid',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'categoryId', 'slug', 'model', 'neckFinish', 'dosage', 'closureStyle',
+          'springType', 'moq', 'materials', 'leadTime', 'applications', 'description',
+          'features', 'galleryUrls', 'galleryLabels', 'status', 'socialLinks', 'authorUid',
+          'createdAt', 'updatedAt'
+        ])
+        && data.categoryId is string && isValidProductCategory(data.categoryId)
+        && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 80 && data.slug.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.model is string && data.model.size() >= 1 && data.model.size() <= 140
+        && data.neckFinish is string && data.neckFinish.size() >= 1 && data.neckFinish.size() <= 80
+        && data.dosage is string && data.dosage.size() >= 1 && data.dosage.size() <= 80
+        && data.closureStyle is string && data.closureStyle.size() >= 1 && data.closureStyle.size() <= 120
+        && data.springType is string && data.springType.size() >= 1 && data.springType.size() <= 120
+        && data.moq is string && data.moq.size() >= 1 && data.moq.size() <= 60
+        && data.materials is string && data.materials.size() >= 1 && data.materials.size() <= 200
+        && data.leadTime is string && data.leadTime.size() >= 1 && data.leadTime.size() <= 60
+        && data.applications is string && data.applications.size() >= 1 && data.applications.size() <= 300
+        && data.description is string && data.description.size() >= 1 && data.description.size() <= 2000
+        && data.features is list && data.features.size() >= 1 && data.features.size() <= 10 && data.features[0] is string && data.features[0].size() <= 240
+        && data.galleryUrls is list && data.galleryUrls.size() >= 1 && data.galleryUrls.size() <= 6 && data.galleryUrls[0] is string && data.galleryUrls[0].size() <= 100000
+        && data.galleryLabels is list && data.galleryLabels.size() == data.galleryUrls.size() && data.galleryLabels[0] is string && data.galleryLabels[0].size() <= 120
+        && data.status is string && data.status in ['active', 'archived']
+        && (!('socialLinks' in data) || isValidSocialLinks(data.socialLinks))
+        && data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBlogCategory(cat) {
+      return cat in [
+        'Engineering',
+        'Manufacturing',
+        'Quality Control',
+        'Packaging Trends',
+        'Export & Logistics'
+      ];
+    }
+
+    function isValidBlogPost(data) {
+      return data.keys().hasAll([
+          'slug', 'title', 'excerpt', 'content', 'category', 'coverImage',
+          'authorName', 'readTime', 'tags', 'status', 'publishedAt',
+          'authorUid', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'slug', 'title', 'excerpt', 'content', 'category', 'coverImage',
+          'authorName', 'readTime', 'tags', 'status', 'publishedAt', 'socialLinks',
+          'authorUid', 'createdAt', 'updatedAt'
+        ])
+        && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 100 && data.slug.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 180
+        && data.excerpt is string && data.excerpt.size() >= 1 && data.excerpt.size() <= 400
+        && data.content is string && data.content.size() >= 1 && data.content.size() <= 12000
+        && data.category is string && isValidBlogCategory(data.category)
+        && data.coverImage is string && data.coverImage.size() >= 1 && data.coverImage.size() <= 100000
+        && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80
+        && data.readTime is string && data.readTime.size() >= 1 && data.readTime.size() <= 40
+        && data.tags is list && data.tags.size() <= 8 && (data.tags.size() == 0 || (data.tags[0] is string && data.tags[0].size() <= 40))
+        && data.status is string && data.status in ['published', 'draft']
+        && data.publishedAt is string && data.publishedAt.size() >= 1 && data.publishedAt.size() <= 40
+        && (!('socialLinks' in data) || isValidSocialLinks(data.socialLinks))
+        && data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSiteConfig(data) {
+      return data.keys().hasAll(['seeded', 'updatedBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['seeded', 'updatedBy', 'createdAt', 'updatedAt'])
+        && data.seeded is bool
+        && data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSocialSettings(data) {
+      return data.keys().hasAll([
+          'facebook', 'instagram', 'tiktok', 'youtube', 'linkedin',
+          'updatedBy', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'facebook', 'instagram', 'tiktok', 'youtube', 'linkedin',
+          'updatedBy', 'createdAt', 'updatedAt'
+        ])
+        && isValidSocialUrl(data.facebook)
+        && isValidSocialUrl(data.instagram)
+        && isValidSocialUrl(data.tiktok)
+        && isValidSocialUrl(data.youtube)
+        && isValidSocialUrl(data.linkedin)
+        && data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['email', 'role', 'createdAt'])
+        && data.keys().hasOnly(['email', 'role', 'createdAt'])
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && data.role is string && data.role == 'admin'
+        && data.createdAt is timestamp;
+    }
+
+    // --- Collection: products ---
+    match /products/{productId} {
+      allow get: if isValidId(productId) && ((resource != null && existing().status == 'active') || isAdmin());
+      allow list: if resource.data.status == 'active' || isPrimaryAdmin();
+
+      allow create: if isSignedIn()
+        && isValidId(productId)
+        && isValidProduct(incoming())
+        && incoming().authorUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+
+      allow update: if isSignedIn()
+        && isValidId(productId)
+        && isValidProduct(incoming())
+        && incoming().authorUid == existing().authorUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin()
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'categoryId', 'slug', 'model', 'neckFinish', 'dosage', 'closureStyle',
+          'springType', 'moq', 'materials', 'leadTime', 'applications', 'description',
+          'features', 'galleryUrls', 'galleryLabels', 'status', 'socialLinks', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn()
+        && isValidId(productId)
+        && isAdmin();
+    }
+
+    // --- Collection: blogPosts ---
+    match /blogPosts/{postId} {
+      allow get: if isValidId(postId) && ((resource != null && existing().status == 'published') || isAdmin());
+      allow list: if resource.data.status == 'published' || isPrimaryAdmin();
+
+      allow create: if isSignedIn()
+        && isValidId(postId)
+        && isValidBlogPost(incoming())
+        && incoming().authorUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+
+      allow update: if isSignedIn()
+        && isValidId(postId)
+        && isValidBlogPost(incoming())
+        && incoming().authorUid == existing().authorUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin()
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'slug', 'title', 'excerpt', 'content', 'category', 'coverImage',
+          'authorName', 'readTime', 'tags', 'status', 'publishedAt', 'socialLinks', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn()
+        && isValidId(postId)
+        && isAdmin();
+    }
+
+    // --- Collection: siteConfig ---
+    match /siteConfig/{configId} {
+      allow get: if isValidId(configId);
+      allow list: if false;
+
+      allow create: if isSignedIn()
+        && isValidId(configId)
+        && isValidSiteConfig(incoming())
+        && incoming().updatedBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+
+      allow update: if isSignedIn()
+        && isValidId(configId)
+        && isValidSiteConfig(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin()
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'seeded', 'updatedBy', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(configId) && isAdmin();
+    }
+
+    // --- Collection: admins ---
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && isValidId(adminUid) && (request.auth.uid == adminUid || isAdmin());
+      allow list: if isPrimaryAdmin();
+      allow create: if isPrimaryAdmin()
+        && isValidId(adminUid)
+        && isValidAdminUser(incoming())
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isPrimaryAdmin() && isValidId(adminUid);
+    }
+
+    // --- Collection: socialSettings ---
+    match /socialSettings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if false;
+
+      allow create: if isSignedIn()
+        && isValidId(settingId)
+        && isValidSocialSettings(incoming())
+        && incoming().updatedBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+
+      allow update: if isSignedIn()
+        && isValidId(settingId)
+        && isValidSocialSettings(incoming())
+        && incoming().updatedBy == request.auth.uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin()
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'facebook', 'instagram', 'tiktok', 'youtube', 'linkedin', 'updatedBy', 'updatedAt'
+        ]);
+
+      allow delete: if isSignedIn() && isValidId(settingId) && isAdmin();
+    }
+  }
+}

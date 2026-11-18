@@ -1,0 +1,750 @@
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  Unsubscribe,
+  updateDoc,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { PRODUCT_CATEGORIES, ProductVariant } from '../data/factoryData';
+import { BlogCategory, BlogPost, STARTER_BLOG_POSTS } from '../data/blogData';
+import { EMPTY_SOCIAL_LINKS, SocialMediaLinks } from '../components/SocialLinksBar';
+
+export type { SocialMediaLinks };
+
+export interface CmsProductRecord {
+  id: string;
+  categoryId: string;
+  slug: string;
+  model: string;
+  neckFinish: string;
+  dosage: string;
+  closureStyle: string;
+  springType: string;
+  moq: string;
+  materials: string;
+  leadTime: string;
+  applications: string;
+  description: string;
+  features: string[];
+  galleryUrls: string[];
+  galleryLabels: string[];
+  status: 'active' | 'archived';
+  socialLinks?: SocialMediaLinks;
+  authorUid: string;
+  isEdited: boolean;
+}
+
+export interface ProductInput {
+  categoryId: string;
+  slug: string;
+  model: string;
+  neckFinish: string;
+  dosage: string;
+  closureStyle: string;
+  springType: string;
+  moq: string;
+  materials: string;
+  leadTime: string;
+  applications: string;
+  description: string;
+  features: string[];
+  galleryUrls: string[];
+  galleryLabels: string[];
+  status: 'active' | 'archived';
+  socialLinks?: SocialMediaLinks;
+}
+
+export interface BlogPostInput {
+  slug: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  category: BlogCategory;
+  coverImage: string;
+  authorName: string;
+  readTime: string;
+  tags: string[];
+  status: 'published' | 'draft';
+  publishedAt: string;
+  socialLinks?: SocialMediaLinks;
+}
+
+const VALID_PRODUCT_CATEGORIES = new Set([
+  'trigger-sprayers',
+  'mini-triggers',
+  'foam-triggers',
+  'lotion-pumps',
+  'fine-mist-sprayers',
+  'bottle-caps-closures',
+]);
+
+const VALID_BLOG_CATEGORIES = new Set<BlogCategory>([
+  'Engineering',
+  'Manufacturing',
+  'Quality Control',
+  'Packaging Trends',
+  'Export & Logistics',
+]);
+
+export function sanitizeSlug(raw: string, fallbackPrefix = 'item'): string {
+  const cleaned = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 75);
+  return cleaned || `${fallbackPrefix}-${Date.now().toString(36)}`;
+}
+
+function clampStr(val: string, max: number, fallback = '-'): string {
+  const trimmed = val.trim().slice(0, max);
+  return trimmed.length > 0 ? trimmed : fallback;
+}
+
+function normalizeSocialUrl(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  const trimmed = raw.replace(/[\r\n]+/g, '').trim();
+  if (!trimmed) return '';
+  if (/^(javascript|data|vbscript):/i.test(trimmed)) return '';
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return withScheme.slice(0, 300);
+}
+
+export function normalizeSocialLinks(raw?: Partial<SocialMediaLinks> | null): SocialMediaLinks {
+  return {
+    facebook: normalizeSocialUrl(raw?.facebook),
+    instagram: normalizeSocialUrl(raw?.instagram),
+    tiktok: normalizeSocialUrl(raw?.tiktok),
+    youtube: normalizeSocialUrl(raw?.youtube),
+    linkedin: normalizeSocialUrl(raw?.linkedin),
+  };
+}
+
+export function hasAnySocialLink(links?: SocialMediaLinks | null): boolean {
+  if (!links) return false;
+  return Boolean(
+    links.facebook || links.instagram || links.tiktok || links.youtube || links.linkedin
+  );
+}
+
+function normalizeProductPayload(input: ProductInput, uid: string) {
+  const categoryId = VALID_PRODUCT_CATEGORIES.has(input.categoryId)
+    ? input.categoryId
+    : 'trigger-sprayers';
+  const slug = sanitizeSlug(input.slug || input.model, 'yl-model').slice(0, 80);
+
+  const features = input.features
+    .map((f) => f.trim().slice(0, 240))
+    .filter(Boolean)
+    .slice(0, 10);
+  if (features.length === 0) {
+    features.push('Precision in-house moulding in Yuyao, Ningbo');
+  }
+
+  const urls = input.galleryUrls
+    .map((u) => u.trim())
+    .filter((u) => u.length > 0 && u.length <= 100000)
+    .slice(0, 6);
+  if (urls.length === 0) {
+    urls.push('/src/assets/images/product_trigger_sprayer_1795008502569.jpg');
+  }
+
+  const labels = urls.map((_, idx) =>
+    clampStr(input.galleryLabels[idx] || `Product View ${idx + 1}`, 120)
+  );
+
+  return {
+    categoryId,
+    slug,
+    model: clampStr(input.model, 140),
+    neckFinish: clampStr(input.neckFinish, 80, '28/410'),
+    dosage: clampStr(input.dosage, 80, '1.25 ml/stroke'),
+    closureStyle: clampStr(input.closureStyle, 120, 'Ribbed / Smooth'),
+    springType: clampStr(input.springType, 120, '304 Stainless Steel'),
+    moq: clampStr(input.moq, 60, '10,000 pcs'),
+    materials: clampStr(input.materials, 200, 'Virgin PP'),
+    leadTime: clampStr(input.leadTime, 60, '15–18 days'),
+    applications: clampStr(input.applications, 300, 'Household & industrial cleaners'),
+    description: clampStr(input.description, 2000),
+    features,
+    galleryUrls: urls,
+    galleryLabels: labels,
+    status: input.status === 'archived' ? 'archived' : ('active' as const),
+    socialLinks: normalizeSocialLinks(input.socialLinks),
+    authorUid: uid,
+  };
+}
+
+function normalizeBlogPayload(input: BlogPostInput, uid: string) {
+  const category = VALID_BLOG_CATEGORIES.has(input.category)
+    ? input.category
+    : 'Engineering';
+  const slug = sanitizeSlug(input.slug || input.title, 'article').slice(0, 100);
+  const tags = input.tags
+    .map((t) => t.trim().slice(0, 40))
+    .filter(Boolean)
+    .slice(0, 8);
+
+  return {
+    slug,
+    title: clampStr(input.title, 180),
+    excerpt: clampStr(input.excerpt, 400),
+    content: clampStr(input.content, 12000),
+    category,
+    coverImage: clampStr(
+      input.coverImage,
+      100000,
+      '/src/assets/images/factory_injection_moulding_1795005762839.jpg'
+    ),
+    authorName: clampStr(input.authorName, 80, 'Yi Lai Engineering Desk'),
+    readTime: clampStr(input.readTime, 40, '4 min read'),
+    tags,
+    status: input.status === 'draft' ? 'draft' : ('published' as const),
+    publishedAt: clampStr(input.publishedAt, 40, new Date().toISOString().slice(0, 10)),
+    socialLinks: normalizeSocialLinks(input.socialLinks),
+    authorUid: uid,
+  };
+}
+
+function extractSocialLinks(raw: unknown): SocialMediaLinks {
+  if (!raw || typeof raw !== 'object') return { ...EMPTY_SOCIAL_LINKS };
+  return normalizeSocialLinks(raw as Partial<SocialMediaLinks>);
+}
+
+function toProductRecord(id: string, data: Record<string, unknown>): CmsProductRecord {
+  const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : 0;
+  const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : 0;
+  const galleryUrls = Array.isArray(data.galleryUrls) ? (data.galleryUrls as string[]) : [];
+  const galleryLabels = Array.isArray(data.galleryLabels) ? (data.galleryLabels as string[]) : [];
+
+  return {
+    id,
+    categoryId: String(data.categoryId || 'trigger-sprayers'),
+    slug: String(data.slug || id),
+    model: String(data.model || ''),
+    neckFinish: String(data.neckFinish || ''),
+    dosage: String(data.dosage || ''),
+    closureStyle: String(data.closureStyle || ''),
+    springType: String(data.springType || ''),
+    moq: String(data.moq || ''),
+    materials: String(data.materials || ''),
+    leadTime: String(data.leadTime || ''),
+    applications: String(data.applications || ''),
+    description: String(data.description || ''),
+    features: Array.isArray(data.features) ? (data.features as string[]) : [],
+    galleryUrls,
+    galleryLabels,
+    status: data.status === 'archived' ? 'archived' : 'active',
+    socialLinks: extractSocialLinks(data.socialLinks),
+    authorUid: String(data.authorUid || ''),
+    isEdited: updatedAt !== createdAt,
+  };
+}
+
+function toBlogRecord(id: string, data: Record<string, unknown>): BlogPost {
+  const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : 0;
+  const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : 0;
+  const rawCategory = String(data.category || 'Engineering') as BlogCategory;
+
+  return {
+    id,
+    slug: String(data.slug || id),
+    title: String(data.title || ''),
+    excerpt: String(data.excerpt || ''),
+    content: String(data.content || ''),
+    category: VALID_BLOG_CATEGORIES.has(rawCategory) ? rawCategory : 'Engineering',
+    coverImage: String(
+      data.coverImage || '/src/assets/images/factory_injection_moulding_1795005762839.jpg'
+    ),
+    authorName: String(data.authorName || 'Yi Lai Engineering Team'),
+    readTime: String(data.readTime || '4 min read'),
+    tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
+    status: data.status === 'draft' ? 'draft' : 'published',
+    publishedAt: String(data.publishedAt || '2026-11-18'),
+    socialLinks: extractSocialLinks(data.socialLinks),
+    isEdited: updatedAt !== createdAt,
+  };
+}
+
+export function subscribeCatalogSeeded(
+  onChange: (seeded: boolean, loaded: boolean) => void
+): Unsubscribe {
+  const ref = doc(db, 'siteConfig', 'catalog');
+  return onSnapshot(
+    ref,
+    (snap) => {
+      onChange(snap.exists() && Boolean(snap.data()?.seeded), true);
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.GET, 'siteConfig/catalog');
+    }
+  );
+}
+
+export function subscribeSocialLinks(onData: (links: SocialMediaLinks) => void): Unsubscribe {
+  const path = 'socialSettings/default';
+  return onSnapshot(
+    doc(db, 'socialSettings', 'default'),
+    (snap) => {
+      if (!snap.exists()) {
+        onData({ ...EMPTY_SOCIAL_LINKS });
+        return;
+      }
+      onData(extractSocialLinks(snap.data()));
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.GET, path);
+    }
+  );
+}
+
+export async function saveSocialLinks(
+  uid: string,
+  links: SocialMediaLinks
+): Promise<SocialMediaLinks> {
+  const path = 'socialSettings/default';
+  const ref = doc(db, 'socialSettings', 'default');
+  const normalized = normalizeSocialLinks(links);
+
+  try {
+    const existingSnap = await getDoc(ref);
+    if (existingSnap.exists()) {
+      await updateDoc(ref, {
+        ...normalized,
+        updatedBy: uid,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      await setDoc(ref, {
+        ...normalized,
+        updatedBy: uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    return normalized;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export function subscribePublicProducts(onData: (items: CmsProductRecord[]) => void): Unsubscribe {
+  const path = 'products';
+  const q = query(collection(db, path), where('status', '==', 'active'));
+  return onSnapshot(
+    q,
+    (snap) => {
+      onData(snap.docs.map((d) => toProductRecord(d.id, d.data() as Record<string, unknown>)));
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.LIST, path);
+    }
+  );
+}
+
+export function subscribeAdminProducts(onData: (items: CmsProductRecord[]) => void): Unsubscribe {
+  const path = 'products';
+  return onSnapshot(
+    collection(db, path),
+    (snap) => {
+      onData(snap.docs.map((d) => toProductRecord(d.id, d.data() as Record<string, unknown>)));
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.LIST, path);
+    }
+  );
+}
+
+export function subscribePublicBlogPosts(onData: (posts: BlogPost[]) => void): Unsubscribe {
+  const path = 'blogPosts';
+  const q = query(collection(db, path), where('status', '==', 'published'));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list = snap.docs.map((d) => toBlogRecord(d.id, d.data() as Record<string, unknown>));
+      list.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+      onData(list);
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.LIST, path);
+    }
+  );
+}
+
+export function subscribeAdminBlogPosts(onData: (posts: BlogPost[]) => void): Unsubscribe {
+  const path = 'blogPosts';
+  return onSnapshot(
+    collection(db, path),
+    (snap) => {
+      const list = snap.docs.map((d) => toBlogRecord(d.id, d.data() as Record<string, unknown>));
+      list.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+      onData(list);
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.LIST, path);
+    }
+  );
+}
+
+async function resolveUniqueDocId(
+  collectionName: 'products' | 'blogPosts',
+  baseSlug: string,
+  maxLen: number
+): Promise<string> {
+  const base = sanitizeSlug(baseSlug, collectionName === 'products' ? 'yl-model' : 'post').slice(
+    0,
+    maxLen
+  );
+  const firstRef = doc(db, collectionName, base);
+  const firstSnap = await getDoc(firstRef);
+  if (!firstSnap.exists()) return base;
+
+  const suffix = `-${Date.now().toString(36).slice(-5)}`;
+  return `${base.slice(0, Math.max(1, maxLen - suffix.length))}${suffix}`;
+}
+
+export async function seedStarterContent(uid: string, force = false): Promise<boolean> {
+  const configRef = doc(db, 'siteConfig', 'catalog');
+  try {
+    const configSnap = await getDoc(configRef);
+    if (!force && configSnap.exists() && configSnap.data()?.seeded) {
+      return false;
+    }
+
+    const starterProducts = PRODUCT_CATEGORIES.flatMap((cat) =>
+      cat.variants.map((variant) => ({
+        cat,
+        variant,
+        docId: sanitizeSlug(variant.slug, 'product').slice(0, 80),
+      }))
+    );
+
+    const starterPosts = STARTER_BLOG_POSTS.map((post) => ({
+      post,
+      docId: sanitizeSlug(post.slug, 'post').slice(0, 100),
+    }));
+
+    const [productSnaps, postSnaps] = await Promise.all([
+      Promise.all(starterProducts.map((item) => getDoc(doc(db, 'products', item.docId)))),
+      Promise.all(starterPosts.map((item) => getDoc(doc(db, 'blogPosts', item.docId)))),
+    ]);
+
+    const batch = writeBatch(db);
+    let writeCount = 0;
+
+    starterProducts.forEach(({ cat, variant, docId }, idx) => {
+      const existingSnap = productSnaps[idx];
+      const existingData = existingSnap.exists()
+        ? (existingSnap.data() as Record<string, unknown>)
+        : null;
+
+      if (existingData && !force) {
+        return;
+      }
+
+      const preservedSocial = existingData?.socialLinks
+        ? extractSocialLinks(existingData.socialLinks)
+        : { ...EMPTY_SOCIAL_LINKS };
+
+      const payload = normalizeProductPayload(
+        {
+          categoryId: cat.id,
+          slug: docId,
+          model: variant.model,
+          neckFinish: variant.neckFinish,
+          dosage: variant.dosage,
+          closureStyle: variant.closureStyle,
+          springType: variant.springType,
+          moq: variant.moq,
+          materials: variant.materials,
+          leadTime: variant.leadTime,
+          applications: variant.applications,
+          description: variant.description,
+          features: variant.features,
+          galleryUrls: variant.gallery.map((g) => g.src),
+          galleryLabels: variant.gallery.map((g) => g.label),
+          status: 'active',
+          socialLinks: preservedSocial,
+        },
+        uid
+      );
+
+      const targetRef = doc(db, 'products', docId);
+      if (existingData) {
+        batch.update(targetRef, {
+          categoryId: payload.categoryId,
+          slug: payload.slug,
+          model: payload.model,
+          neckFinish: payload.neckFinish,
+          dosage: payload.dosage,
+          closureStyle: payload.closureStyle,
+          springType: payload.springType,
+          moq: payload.moq,
+          materials: payload.materials,
+          leadTime: payload.leadTime,
+          applications: payload.applications,
+          description: payload.description,
+          features: payload.features,
+          galleryUrls: payload.galleryUrls,
+          galleryLabels: payload.galleryLabels,
+          status: payload.status,
+          socialLinks: payload.socialLinks,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        batch.set(targetRef, {
+          ...payload,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      writeCount += 1;
+    });
+
+    starterPosts.forEach(({ post, docId }, idx) => {
+      const existingSnap = postSnaps[idx];
+      const existingData = existingSnap.exists()
+        ? (existingSnap.data() as Record<string, unknown>)
+        : null;
+
+      if (existingData && !force) {
+        return;
+      }
+
+      const preservedSocial = existingData?.socialLinks
+        ? extractSocialLinks(existingData.socialLinks)
+        : { ...EMPTY_SOCIAL_LINKS };
+
+      const payload = normalizeBlogPayload(
+        {
+          slug: docId,
+          title: post.title,
+          excerpt: post.excerpt,
+          content: post.content,
+          category: post.category,
+          coverImage: post.coverImage,
+          authorName: post.authorName,
+          readTime: post.readTime,
+          tags: post.tags,
+          status: post.status,
+          publishedAt: post.publishedAt,
+          socialLinks: preservedSocial,
+        },
+        uid
+      );
+
+      const targetRef = doc(db, 'blogPosts', docId);
+      if (existingData) {
+        batch.update(targetRef, {
+          slug: payload.slug,
+          title: payload.title,
+          excerpt: payload.excerpt,
+          content: payload.content,
+          category: payload.category,
+          coverImage: payload.coverImage,
+          authorName: payload.authorName,
+          readTime: payload.readTime,
+          tags: payload.tags,
+          status: payload.status,
+          publishedAt: payload.publishedAt,
+          socialLinks: payload.socialLinks,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        batch.set(targetRef, {
+          ...payload,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      writeCount += 1;
+    });
+
+    if (configSnap.exists()) {
+      batch.update(configRef, {
+        seeded: true,
+        updatedBy: uid,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      batch.set(configRef, {
+        seeded: true,
+        updatedBy: uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    writeCount += 1;
+
+    if (writeCount > 0) {
+      await batch.commit();
+    }
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, 'siteConfig/catalog');
+  }
+}
+
+export async function saveProduct(
+  uid: string,
+  input: ProductInput,
+  existingId?: string
+): Promise<string> {
+  const normalized = normalizeProductPayload(input, uid);
+  let docId = existingId ? existingId : normalized.slug;
+  let currentPath = `products/${docId}`;
+
+  try {
+    await seedStarterContent(uid);
+
+    if (!existingId) {
+      docId = await resolveUniqueDocId('products', normalized.slug, 80);
+      currentPath = `products/${docId}`;
+    }
+
+    const ref = doc(db, 'products', docId);
+    const existingSnap = existingId ? await getDoc(ref) : null;
+
+    if (existingSnap?.exists()) {
+      await updateDoc(ref, {
+        categoryId: normalized.categoryId,
+        slug: normalized.slug,
+        model: normalized.model,
+        neckFinish: normalized.neckFinish,
+        dosage: normalized.dosage,
+        closureStyle: normalized.closureStyle,
+        springType: normalized.springType,
+        moq: normalized.moq,
+        materials: normalized.materials,
+        leadTime: normalized.leadTime,
+        applications: normalized.applications,
+        description: normalized.description,
+        features: normalized.features,
+        galleryUrls: normalized.galleryUrls,
+        galleryLabels: normalized.galleryLabels,
+        status: normalized.status,
+        socialLinks: normalized.socialLinks,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      await setDoc(ref, {
+        ...normalized,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    return docId;
+  } catch (error) {
+    handleFirestoreError(
+      error,
+      existingId ? OperationType.UPDATE : OperationType.CREATE,
+      currentPath
+    );
+  }
+}
+
+export async function deleteProduct(uid: string, productId: string): Promise<void> {
+  const path = `products/${productId}`;
+  try {
+    await seedStarterContent(uid);
+    await deleteDoc(doc(db, 'products', productId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+export async function saveBlogPost(
+  uid: string,
+  input: BlogPostInput,
+  existingId?: string
+): Promise<string> {
+  const normalized = normalizeBlogPayload(input, uid);
+  let docId = existingId ? existingId : normalized.slug;
+  let currentPath = `blogPosts/${docId}`;
+
+  try {
+    await seedStarterContent(uid);
+
+    if (!existingId) {
+      docId = await resolveUniqueDocId('blogPosts', normalized.slug, 100);
+      currentPath = `blogPosts/${docId}`;
+    }
+
+    const ref = doc(db, 'blogPosts', docId);
+    const existingSnap = existingId ? await getDoc(ref) : null;
+
+    if (existingSnap?.exists()) {
+      await updateDoc(ref, {
+        slug: normalized.slug,
+        title: normalized.title,
+        excerpt: normalized.excerpt,
+        content: normalized.content,
+        category: normalized.category,
+        coverImage: normalized.coverImage,
+        authorName: normalized.authorName,
+        readTime: normalized.readTime,
+        tags: normalized.tags,
+        status: normalized.status,
+        publishedAt: normalized.publishedAt,
+        socialLinks: normalized.socialLinks,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      await setDoc(ref, {
+        ...normalized,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    return docId;
+  } catch (error) {
+    handleFirestoreError(
+      error,
+      existingId ? OperationType.UPDATE : OperationType.CREATE,
+      currentPath
+    );
+  }
+}
+
+export async function deleteBlogPost(uid: string, postId: string): Promise<void> {
+  const path = `blogPosts/${postId}`;
+  try {
+    await seedStarterContent(uid);
+    await deleteDoc(doc(db, 'blogPosts', postId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+export function cmsProductToVariant(record: CmsProductRecord): ProductVariant {
+  return {
+    slug: record.slug,
+    model: record.model,
+    neckFinish: record.neckFinish,
+    dosage: record.dosage,
+    closureStyle: record.closureStyle,
+    springType: record.springType,
+    moq: record.moq,
+    materials: record.materials,
+    leadTime: record.leadTime,
+    applications: record.applications,
+    description: record.description,
+    features: record.features,
+    gallery: record.galleryUrls.map((src, i) => ({
+      src,
+      label: record.galleryLabels[i] || `View ${i + 1}`,
+    })),
+    socialLinks: record.socialLinks,
+  };
+}
