@@ -214,6 +214,15 @@ service cloud.firestore {
         && data.createdAt is timestamp;
     }
 
+    function isValidFaqItem(item) {
+      return item is map
+        && item.keys().hasAll(['id', 'question', 'answer'])
+        && item.keys().hasOnly(['id', 'question', 'answer'])
+        && item.id is string && item.id.size() >= 1 && item.id.size() <= 80
+        && item.question is string && item.question.size() >= 1 && item.question.size() <= 300
+        && item.answer is string && item.answer.size() >= 1 && item.answer.size() <= 1000;
+    }
+
     function isValidSeoSettings(data) {
       return data.keys().hasAll([
           'siteTitle', 'metaDescription', 'keywords', 'canonicalUrl',
@@ -225,6 +234,8 @@ service cloud.firestore {
           'siteTitle', 'metaDescription', 'keywords', 'canonicalUrl',
           'ogTitle', 'ogDescription', 'ogImage', 'robotsIndex',
           'googleVerification', 'bingVerification', 'yandexVerification', 'baiduVerification',
+          'autoApplyToNewContent', 'enableFaqSchema', 'enableItemListSchema',
+          'enableHreflangTags', 'indexNowKey', 'trackedKeywords', 'faqItems',
           'updatedBy', 'createdAt', 'updatedAt'
         ])
         && data.siteTitle is string && data.siteTitle.size() >= 1 && data.siteTitle.size() <= 120
@@ -239,6 +250,13 @@ service cloud.firestore {
         && data.bingVerification is string && data.bingVerification.size() <= 120
         && data.yandexVerification is string && data.yandexVerification.size() <= 120
         && data.baiduVerification is string && data.baiduVerification.size() <= 120
+        && (!('autoApplyToNewContent' in data) || data.autoApplyToNewContent is bool)
+        && (!('enableFaqSchema' in data) || data.enableFaqSchema is bool)
+        && (!('enableItemListSchema' in data) || data.enableItemListSchema is bool)
+        && (!('enableHreflangTags' in data) || data.enableHreflangTags is bool)
+        && (!('indexNowKey' in data) || (data.indexNowKey is string && data.indexNowKey.size() <= 64))
+        && (!('trackedKeywords' in data) || (data.trackedKeywords is list && data.trackedKeywords.size() <= 20 && (data.trackedKeywords.size() == 0 || (data.trackedKeywords[0] is string && data.trackedKeywords[0].size() <= 80))))
+        && (!('faqItems' in data) || (data.faqItems is list && data.faqItems.size() <= 12 && (data.faqItems.size() == 0 || isValidFaqItem(data.faqItems[0]))))
         && data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
@@ -396,6 +414,8 @@ service cloud.firestore {
           'siteTitle', 'metaDescription', 'keywords', 'canonicalUrl',
           'ogTitle', 'ogDescription', 'ogImage', 'robotsIndex',
           'googleVerification', 'bingVerification', 'yandexVerification', 'baiduVerification',
+          'autoApplyToNewContent', 'enableFaqSchema', 'enableItemListSchema',
+          'enableHreflangTags', 'indexNowKey', 'trackedKeywords', 'faqItems',
           'updatedBy', 'updatedAt'
         ]);
 

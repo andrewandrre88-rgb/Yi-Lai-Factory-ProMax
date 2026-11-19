@@ -2,51 +2,51 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>/</loc>
+    <loc>https://yilaiplastics.online/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="/?lang=en" />
-    <xhtml:link rel="alternate" hreflang="es" href="/?lang=es" />
-    <xhtml:link rel="alternate" hreflang="ar" href="/?lang=ar" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://yilaiplastics.online/?lang=en" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://yilaiplastics.online/?lang=es" />
+    <xhtml:link rel="alternate" hreflang="ar" href="https://yilaiplastics.online/?lang=ar" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://yilaiplastics.online/" />
   </url>
   <url>
-    <loc>/?page=products</loc>
+    <loc>https://yilaiplastics.online/?page=products</loc>
     <changefreq>weekly</changefreq>
     <priority>0.95</priority>
   </url>
   <url>
-    <loc>/?page=products&amp;category=trigger-sprayers</loc>
+    <loc>https://yilaiplastics.online/?page=products&amp;category=trigger-sprayers</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>/?page=products&amp;category=lotion-pumps</loc>
+    <loc>https://yilaiplastics.online/?page=products&amp;category=lotion-pumps</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>/?page=products&amp;category=foam-triggers</loc>
+    <loc>https://yilaiplastics.online/?page=products&amp;category=foam-triggers</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>/?page=products&amp;category=fine-mist-sprayers</loc>
+    <loc>https://yilaiplastics.online/?page=products&amp;category=fine-mist-sprayers</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>/?page=products&amp;category=mini-triggers</loc>
+    <loc>https://yilaiplastics.online/?page=products&amp;category=mini-triggers</loc>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>/?page=products&amp;category=bottle-caps-closures</loc>
+    <loc>https://yilaiplastics.online/?page=products&amp;category=bottle-caps-closures</loc>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>/?page=blog</loc>
+    <loc>https://yilaiplastics.online/?page=blog</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>

@@ -28,4 +28,4 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
-Sitemap: /sitemap.xml
+Sitemap: https://yilaiplastics.online/sitemap.xml

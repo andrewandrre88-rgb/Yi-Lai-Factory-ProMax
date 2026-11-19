@@ -17,7 +17,7 @@
 - Direct FOB Ningbo container consolidation & free 50-piece sample evaluation kits
 
 ## Key URLs
-- Home: /
-- Products Catalogue: /?page=products
-- Factory Journal: /?page=blog
-- XML Sitemap: /sitemap.xml
+- Home: https://yilaiplastics.online/
+- Products Catalogue: https://yilaiplastics.online/?page=products
+- Factory Journal: https://yilaiplastics.online/?page=blog
+- XML Sitemap: https://yilaiplastics.online/sitemap.xml

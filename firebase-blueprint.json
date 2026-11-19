@@ -462,6 +462,36 @@
           "maxLength": 120,
           "description": "Baidu Webmaster verification code."
         },
+        "autoApplyToNewContent": {
+          "type": "boolean",
+          "description": "Automatically apply SEO keywords, canonical domain, schema, and verification tags to every new product and blog post."
+        },
+        "enableFaqSchema": {
+          "type": "boolean",
+          "description": "Controls live FAQPage JSON-LD injection across storefront pages."
+        },
+        "enableItemListSchema": {
+          "type": "boolean",
+          "description": "Controls ItemList JSON-LD structured data for product lines."
+        },
+        "enableHreflangTags": {
+          "type": "boolean",
+          "description": "Controls international en/es/ar/x-default hreflang alternate link tags."
+        },
+        "indexNowKey": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64,
+          "description": "IndexNow verification key for instant Bing/Yandex indexing."
+        },
+        "trackedKeywords": {
+          "type": "array",
+          "description": "Tracked focus keywords in the SEO Keyword Analyzer (up to 20 strings)."
+        },
+        "faqItems": {
+          "type": "array",
+          "description": "Structured FAQPage Q&A entries (up to 12 items) automatically injected into live Schema.org JSON-LD."
+        },
         "updatedBy": {
           "type": "string",
           "pattern": "^[a-zA-Z0-9_\\-]+$",

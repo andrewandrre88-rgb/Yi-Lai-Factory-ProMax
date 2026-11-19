@@ -84,6 +84,12 @@ export interface BlogPostInput {
   socialLinks?: SocialMediaLinks;
 }
 
+export interface SeoFaqEntry {
+  id: string;
+  question: string;
+  answer: string;
+}
+
 export interface SeoSettings {
   siteTitle: string;
   metaDescription: string;
@@ -97,7 +103,45 @@ export interface SeoSettings {
   bingVerification: string;
   yandexVerification: string;
   baiduVerification: string;
+  autoApplyToNewContent: boolean;
+  enableFaqSchema: boolean;
+  enableItemListSchema: boolean;
+  enableHreflangTags: boolean;
+  indexNowKey: string;
+  trackedKeywords: string[];
+  faqItems: SeoFaqEntry[];
 }
+
+export const DEFAULT_SEO_FAQS: SeoFaqEntry[] = [
+  {
+    id: 'faq-moq-leadtime',
+    question:
+      'What is the MOQ and production lead time for trigger sprayers, lotion pumps, foam pumps, and fine mist sprayers?',
+    answer:
+      'Yi Lai Plastics standard MOQ is 10,000 pcs per SKU (20,000 pcs for select mini triggers and closures), with 15 to 22 day factory production lead times from Yuyao, Ningbo and direct FOB Ningbo container consolidation.',
+  },
+  {
+    id: 'faq-neck-sizes',
+    question:
+      'Which SPI bottle neck finishes are supported across your sprayers and lotion pumps?',
+    answer:
+      'We manufacture in-house moulds for 18/410, 18/415, 20/410, 24/410, 28/400, 28/410, and 40/400 SPI neck finishes, with custom angle-cut LDPE dip tubes matched to your exact bottle height within ±1.0 mm.',
+  },
+  {
+    id: 'faq-springs-chemical',
+    question:
+      'Do you offer 316 stainless steel or metal-free springs for bleach and acidic cleaners?',
+    answer:
+      'Yes. Standard household cleaners use external 304 stainless steel springs, while sodium hypochlorite bleach, bathroom descalers, and alkaline degreasers can be built with 316 marine-grade stainless steel springs or all-plastic metal-free valving.',
+  },
+  {
+    id: 'faq-pantone-samples',
+    question:
+      'Can we order custom Pantone colors and free test samples before bulk production?',
+    answer:
+      'Yes. Our Yuyao colour room matches any Pantone solid coated code across PP shrouds, triggers, lotion pump collars, and bottle caps, and we ship a free 50-piece technical sample kit for leak and compatibility testing.',
+  },
+];
 
 export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   siteTitle: 'Yi Lai Plastics — Trigger Sprayer, Lotion Pump & Mist Factory',
@@ -115,7 +159,7 @@ export const DEFAULT_SEO_SETTINGS: SeoSettings = {
     'fine mist atomizer supplier',
     'Yuyao plastic dispensers Ningbo',
   ],
-  canonicalUrl: '',
+  canonicalUrl: 'https://yilaiplastics.online',
   ogTitle: 'Yi Lai Plastics — Trigger Sprayer, Lotion Pump & Mist Factory',
   ogDescription:
     'ISO 9001 manufacturer of trigger sprayers, lotion pumps, foam pumps, and fine mist sprayers in Yuyao, Ningbo. Custom Pantone OEM & direct FOB export.',
@@ -125,6 +169,22 @@ export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   bingVerification: '',
   yandexVerification: '',
   baiduVerification: '',
+  autoApplyToNewContent: true,
+  enableFaqSchema: true,
+  enableItemListSchema: true,
+  enableHreflangTags: true,
+  indexNowKey: 'yilai8899triggerlotionfoamfinemist2026',
+  trackedKeywords: [
+    'trigger sprayer',
+    'lotion pump',
+    'foam pump',
+    'fine mist sprayer',
+    '28/410 trigger sprayer',
+    'lotion pump manufacturer',
+    'foam trigger sprayer',
+    'fine mist atomizer supplier',
+  ],
+  faqItems: DEFAULT_SEO_FAQS,
 };
 
 export const RECOMMENDED_SEO_SETTINGS: SeoSettings = {
@@ -149,9 +209,14 @@ export const RECOMMENDED_SEO_SETTINGS: SeoSettings = {
     'custom Pantone bottle closures Yuyao',
     'Yi Lai Plastics Industry',
   ],
+  canonicalUrl: 'https://yilaiplastics.online',
   ogTitle: 'Trigger Sprayer, Lotion, Foam & Fine Mist Pump | Yi Lai',
   ogDescription:
     'Top China factory for trigger sprayers, lotion pumps, foam pumps & fine mist sprayers (24/410, 28/410). Custom Pantone, 316 SS springs & FOB Ningbo.',
+  autoApplyToNewContent: true,
+  enableFaqSchema: true,
+  enableItemListSchema: true,
+  enableHreflangTags: true,
 };
 
 const VALID_PRODUCT_CATEGORIES = new Set([
@@ -452,6 +517,16 @@ export async function saveSocialLinks(
   }
 }
 
+export function extractVerificationToken(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const match = trimmed.match(/content=["']([^"']+)["']/i);
+  if (match && match[1]) {
+    return match[1].trim().slice(0, 120);
+  }
+  return trimmed.slice(0, 120);
+}
+
 export function normalizeSeoSettings(raw?: Partial<SeoSettings> | null): SeoSettings {
   const cleanTitle = clampStr(
     String(raw?.siteTitle ?? DEFAULT_SEO_SETTINGS.siteTitle),
@@ -471,21 +546,56 @@ export function normalizeSeoSettings(raw?: Partial<SeoSettings> | null): SeoSett
         .slice(0, 30)
     : [...DEFAULT_SEO_SETTINGS.keywords];
 
-  const rawCanonical = typeof raw?.canonicalUrl === 'string'
-    ? raw.canonicalUrl.replace(/[\r\n]+/g, '').trim()
-    : '';
+  const rawCanonical =
+    typeof raw?.canonicalUrl === 'string'
+      ? raw.canonicalUrl.replace(/[\r\n]+/g, '').trim()
+      : DEFAULT_SEO_SETTINGS.canonicalUrl;
   const canonicalUrl = rawCanonical
     ? /^(javascript|data|vbscript):/i.test(rawCanonical)
       ? ''
-      : (/^https?:\/\//i.test(rawCanonical) ? rawCanonical : `https://${rawCanonical}`).slice(0, 300)
+      : (/^https?:\/\//i.test(rawCanonical) ? rawCanonical : `https://${rawCanonical}`)
+          .replace(/\/+$/, '')
+          .slice(0, 300)
     : '';
+
+  const trackedKeywords = Array.isArray(raw?.trackedKeywords)
+    ? raw.trackedKeywords
+        .map((k) => (typeof k === 'string' ? k.trim().slice(0, 80) : ''))
+        .filter(Boolean)
+        .slice(0, 20)
+    : [...DEFAULT_SEO_SETTINGS.trackedKeywords];
+
+  const faqItems: SeoFaqEntry[] = Array.isArray(raw?.faqItems)
+    ? raw.faqItems
+        .filter(
+          (item): item is SeoFaqEntry =>
+            Boolean(item) &&
+            typeof item === 'object' &&
+            typeof item.question === 'string' &&
+            typeof item.answer === 'string' &&
+            Boolean(item.question.trim()) &&
+            Boolean(item.answer.trim())
+        )
+        .slice(0, 12)
+        .map((item, idx) => ({
+          id: clampStr(String(item.id || `faq-${idx + 1}`), 80, `faq-${idx + 1}`),
+          question: clampStr(item.question, 300),
+          answer: clampStr(item.answer, 1000),
+        }))
+    : [...DEFAULT_SEO_FAQS];
+
+  const rawIndexNowKey =
+    typeof raw?.indexNowKey === 'string'
+      ? raw.indexNowKey.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 64)
+      : '';
 
   return {
     siteTitle: cleanTitle,
     metaDescription: cleanDesc,
     keywords,
     canonicalUrl,
-    ogTitle: typeof raw?.ogTitle === 'string' ? raw.ogTitle.trim().slice(0, 120) : cleanTitle.slice(0, 120),
+    ogTitle:
+      typeof raw?.ogTitle === 'string' ? raw.ogTitle.trim().slice(0, 120) : cleanTitle.slice(0, 120),
     ogDescription:
       typeof raw?.ogDescription === 'string'
         ? raw.ogDescription.trim().slice(0, 320)
@@ -493,13 +603,27 @@ export function normalizeSeoSettings(raw?: Partial<SeoSettings> | null): SeoSett
     ogImage: typeof raw?.ogImage === 'string' ? raw.ogImage.trim().slice(0, 100000) : '',
     robotsIndex: raw?.robotsIndex === false ? false : true,
     googleVerification:
-      typeof raw?.googleVerification === 'string' ? raw.googleVerification.trim().slice(0, 120) : '',
+      typeof raw?.googleVerification === 'string'
+        ? extractVerificationToken(raw.googleVerification)
+        : '',
     bingVerification:
-      typeof raw?.bingVerification === 'string' ? raw.bingVerification.trim().slice(0, 120) : '',
+      typeof raw?.bingVerification === 'string' ? extractVerificationToken(raw.bingVerification) : '',
     yandexVerification:
-      typeof raw?.yandexVerification === 'string' ? raw.yandexVerification.trim().slice(0, 120) : '',
+      typeof raw?.yandexVerification === 'string'
+        ? extractVerificationToken(raw.yandexVerification)
+        : '',
     baiduVerification:
-      typeof raw?.baiduVerification === 'string' ? raw.baiduVerification.trim().slice(0, 120) : '',
+      typeof raw?.baiduVerification === 'string'
+        ? extractVerificationToken(raw.baiduVerification)
+        : '',
+    autoApplyToNewContent: raw?.autoApplyToNewContent === false ? false : true,
+    enableFaqSchema: raw?.enableFaqSchema === false ? false : true,
+    enableItemListSchema: raw?.enableItemListSchema === false ? false : true,
+    enableHreflangTags: raw?.enableHreflangTags === false ? false : true,
+    indexNowKey: rawIndexNowKey || DEFAULT_SEO_SETTINGS.indexNowKey,
+    trackedKeywords:
+      trackedKeywords.length > 0 ? trackedKeywords : [...DEFAULT_SEO_SETTINGS.trackedKeywords],
+    faqItems,
   };
 }
 

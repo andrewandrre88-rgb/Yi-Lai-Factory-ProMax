@@ -512,12 +512,17 @@ export function DashboardPage({
   const openAddPostModal = () => {
     setEditingPostId(null);
     setPostUploadError(null);
+    const autoSeoActive = seoSettings.autoApplyToNewContent !== false;
+    const inheritedTags =
+      autoSeoActive && seoSettings.keywords.length > 0
+        ? seoSettings.keywords.slice(0, 8).join(', ')
+        : 'Trigger Sprayers, QC Testing, OEM';
     setPostForm({
       ...EMPTY_BLOG_FORM,
       publishedAt: new Date().toISOString().slice(0, 10),
       socialLinks: { ...socialLinks },
     });
-    setTagsText('Trigger Sprayers, QC Testing, OEM');
+    setTagsText(inheritedTags);
     setPostModalOpen(true);
   };
 
@@ -581,6 +586,23 @@ export function DashboardPage({
         .map((t) => t.trim())
         .filter(Boolean);
 
+      const autoSeoActive = seoSettings.autoApplyToNewContent !== false;
+      const mergedTags =
+        autoSeoActive && !editingPostId
+          ? Array.from(
+              new Map(
+                [...parsedTags, ...seoSettings.keywords].map((tag) => [
+                  tag.toLowerCase(),
+                  tag,
+                ])
+              ).values()
+            ).slice(0, 8)
+          : parsedTags.length > 0
+            ? parsedTags
+            : autoSeoActive
+              ? seoSettings.keywords.slice(0, 8)
+              : [];
+
       const finalSlug = postForm.slug.trim()
         ? sanitizeSlug(postForm.slug, 'post')
         : sanitizeSlug(postForm.title, 'post');
@@ -596,7 +618,7 @@ export function DashboardPage({
         {
           ...postForm,
           slug: finalSlug,
-          tags: parsedTags,
+          tags: mergedTags,
           socialLinks: attachedSocial,
         },
         editingPostId ?? undefined
@@ -1801,6 +1823,69 @@ export function DashboardPage({
                 )}
               </div>
 
+              {/* Auto-Applied SEO Studio Configuration Preview */}
+              <div className="rounded-2xl bg-[#F8FAFE] border border-slate-200/80 p-4 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Search className="w-4 h-4 text-[#155EEF]" />
+                    <div>
+                      <p className="text-xs font-bold text-[#0B1B3E]">
+                        Auto-Applied SEO Configuration
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {seoSettings.autoApplyToNewContent !== false
+                          ? 'Everything configured in SEO Studio automatically applies to this product page.'
+                          : 'Auto-inheritance is paused in SEO Studio (canonical & core tags still apply).'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProductModalOpen(false);
+                      setActiveTab('seo');
+                    }}
+                    className="text-xs font-semibold text-[#155EEF] hover:underline cursor-pointer whitespace-nowrap"
+                  >
+                    Edit SEO settings
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                  <div className="rounded-xl bg-white border border-slate-200/70 px-3 py-2">
+                    <span className="font-semibold text-slate-500 block mb-0.5">
+                      Canonical URL
+                    </span>
+                    <span className="font-mono text-[#0B1B3E] break-all">
+                      {`${(seoSettings.canonicalUrl || 'https://yilaiplastics.online').replace(/\/+$/, '')}/?page=products&product=${sanitizeSlug(
+                        productForm.slug.trim() || productForm.model.trim(),
+                        'yl-model'
+                      )}`}
+                    </span>
+                  </div>
+                  <div className="rounded-xl bg-white border border-slate-200/70 px-3 py-2">
+                    <span className="font-semibold text-slate-500 block mb-0.5">
+                      Inherited Schema &amp; Verification
+                    </span>
+                    <span className="text-[#0B1B3E] font-medium">
+                      Product + Breadcrumb
+                      {seoSettings.enableFaqSchema !== false ? ' + FAQPage' : ''}
+                      {seoSettings.enableHreflangTags !== false ? ' + hreflang' : ''}
+                      {seoSettings.googleVerification ? ' + Google Console' : ''}
+                    </span>
+                  </div>
+                </div>
+                {seoSettings.autoApplyToNewContent !== false &&
+                  seoSettings.keywords.length > 0 && (
+                    <p className="text-[11px] text-slate-600">
+                      <span className="font-semibold text-[#0B1B3E]">Target Keywords: </span>
+                      {seoSettings.keywords.slice(0, 6).join(', ')}
+                      {seoSettings.keywords.length > 6
+                        ? ` (+${seoSettings.keywords.length - 6} more)`
+                        : ''}
+                    </p>
+                  )}
+              </div>
+
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
                 <button
                   type="button"
@@ -2102,6 +2187,69 @@ export function DashboardPage({
                 ) : (
                   <p className="text-xs text-slate-500">{s.socialNoLinksYet}</p>
                 )}
+              </div>
+
+              {/* Auto-Applied SEO Studio Configuration Preview */}
+              <div className="rounded-2xl bg-[#F8FAFE] border border-slate-200/80 p-4 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Search className="w-4 h-4 text-[#155EEF]" />
+                    <div>
+                      <p className="text-xs font-bold text-[#0B1B3E]">
+                        Auto-Applied SEO Configuration
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {seoSettings.autoApplyToNewContent !== false
+                          ? 'SEO Studio keywords, schemas, canonicals & Search Console verification auto-apply on publish.'
+                          : 'Auto-inheritance is paused in SEO Studio (canonical & core tags still apply).'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPostModalOpen(false);
+                      setActiveTab('seo');
+                    }}
+                    className="text-xs font-semibold text-[#155EEF] hover:underline cursor-pointer whitespace-nowrap"
+                  >
+                    Edit SEO settings
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                  <div className="rounded-xl bg-white border border-slate-200/70 px-3 py-2">
+                    <span className="font-semibold text-slate-500 block mb-0.5">
+                      Canonical URL
+                    </span>
+                    <span className="font-mono text-[#0B1B3E] break-all">
+                      {`${(seoSettings.canonicalUrl || 'https://yilaiplastics.online').replace(/\/+$/, '')}/?page=blog&post=${sanitizeSlug(
+                        postForm.slug.trim() || postForm.title.trim(),
+                        'post'
+                      )}`}
+                    </span>
+                  </div>
+                  <div className="rounded-xl bg-white border border-slate-200/70 px-3 py-2">
+                    <span className="font-semibold text-slate-500 block mb-0.5">
+                      Inherited Schema &amp; Verification
+                    </span>
+                    <span className="text-[#0B1B3E] font-medium">
+                      Article + Breadcrumb
+                      {seoSettings.enableFaqSchema !== false ? ' + FAQPage' : ''}
+                      {seoSettings.enableHreflangTags !== false ? ' + hreflang' : ''}
+                      {seoSettings.googleVerification ? ' + Google Console' : ''}
+                    </span>
+                  </div>
+                </div>
+                {seoSettings.autoApplyToNewContent !== false &&
+                  seoSettings.keywords.length > 0 && (
+                    <p className="text-[11px] text-slate-600">
+                      <span className="font-semibold text-[#0B1B3E]">Inherited Keywords: </span>
+                      {seoSettings.keywords.slice(0, 6).join(', ')}
+                      {seoSettings.keywords.length > 6
+                        ? ` (+${seoSettings.keywords.length - 6} more)`
+                        : ''}
+                    </p>
+                  )}
               </div>
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">

@@ -30,6 +30,7 @@ import { SocialMediaLinks } from './SocialLinksBar';
 import {
   CmsProductRecord,
   countSocialLinks,
+  extractVerificationToken,
   RECOMMENDED_SEO_SETTINGS,
   saveSeoSettings,
   SeoSettings,
@@ -51,7 +52,6 @@ import {
   loadSeoWorkspace,
   saveSeoWorkspace,
   SEARCH_ENGINE_CONSOLE_LINKS,
-  SeoFaqItem,
   SeoProWorkspace,
 } from '../data/seoToolkitData';
 
@@ -125,13 +125,13 @@ export function computeSeoAudit(
     {
       id: 'schema-org',
       label: 'Schema.org Graph (Organization, ItemList, FAQPage, Product, Article)',
-      passed: true,
+      passed: seo.enableFaqSchema !== false || seo.enableItemListSchema !== false,
       points: 8,
     },
     {
       id: 'hreflang',
       label: 'Multilingual hreflang (en, es, ar, x-default) & Geo Tags',
-      passed: true,
+      passed: seo.enableHreflangTags !== false,
       points: 6,
     },
     {
@@ -191,7 +191,7 @@ export function SeoDashboardSection({
   const [uploadingOg, setUploadingOg] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Extended Pro SEO Workspace (FAQs, IndexNow, Tracked Keywords, Directories)
+  // Local directory checklist persistence
   const [workspace, setWorkspace] = useState<SeoProWorkspace>(() => loadSeoWorkspace());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -204,6 +204,9 @@ export function SeoDashboardSection({
   // FAQ Builder state
   const [newFaqQuestion, setNewFaqQuestion] = useState('');
   const [newFaqAnswer, setNewFaqAnswer] = useState('');
+
+  // Google HTML file verification generator
+  const [googleHtmlFileName, setGoogleHtmlFileName] = useState('');
 
   // IndexNow & Crawler state
   const [allowAiBots, setAllowAiBots] = useState(true);
@@ -244,13 +247,12 @@ export function SeoDashboardSection({
   const descPixels = estimateDescPixels(form.metaDescription);
 
   const previewUrl =
-    form.canonicalUrl.trim() ||
-    (typeof window !== 'undefined' ? window.location.origin : 'https://www.yilaiplastics.com');
+    form.canonicalUrl.trim() || 'https://yilaiplastics.online';
   const cleanBaseUrl = previewUrl.replace(/\/+$/, '');
 
   const keywordAnalysis = useMemo(
-    () => analyzeKeywordsAcrossSite(workspace.trackedKeywords, liveForm, products, blogPosts),
-    [workspace.trackedKeywords, liveForm, products, blogPosts]
+    () => analyzeKeywordsAcrossSite(form.trackedKeywords, liveForm, products, blogPosts),
+    [form.trackedKeywords, liveForm, products, blogPosts]
   );
 
   const generatedLongTails = useMemo(
@@ -301,7 +303,7 @@ export function SeoDashboardSection({
       },
     ];
 
-    if (workspace.enableItemListSchema) {
+    if (form.enableItemListSchema) {
       graph.push({
         '@type': 'ItemList',
         name: 'Dispensing Product Categories',
@@ -315,10 +317,10 @@ export function SeoDashboardSection({
       });
     }
 
-    if (workspace.enableFaqSchema && workspace.faqItems.length > 0) {
+    if (form.enableFaqSchema && form.faqItems.length > 0) {
       graph.push({
         '@type': 'FAQPage',
-        mainEntity: workspace.faqItems.map((faq) => ({
+        mainEntity: form.faqItems.map((faq) => ({
           '@type': 'Question',
           name: faq.question,
           acceptedAnswer: {
@@ -337,7 +339,7 @@ export function SeoDashboardSection({
       null,
       2
     );
-  }, [cleanBaseUrl, liveForm.metaDescription, workspace]);
+  }, [cleanBaseUrl, liveForm.metaDescription, form.enableItemListSchema, form.enableFaqSchema, form.faqItems]);
 
   const indexNowUrlList = useMemo(() => {
     const list = [
@@ -345,8 +347,12 @@ export function SeoDashboardSection({
       `${cleanBaseUrl}/?page=products`,
       `${cleanBaseUrl}/?page=blog`,
       ...PRODUCT_CATEGORIES.map((c) => `${cleanBaseUrl}/?page=products&category=${c.id}`),
-      ...activeProducts.map((p) => `${cleanBaseUrl}/?page=products&product=${encodeURIComponent(p.slug)}`),
-      ...publishedPosts.map((post) => `${cleanBaseUrl}/?page=blog&post=${encodeURIComponent(post.slug)}`),
+      ...activeProducts.map(
+        (p) => `${cleanBaseUrl}/?page=products&product=${encodeURIComponent(p.slug)}`
+      ),
+      ...publishedPosts.map(
+        (post) => `${cleanBaseUrl}/?page=blog&post=${encodeURIComponent(post.slug)}`
+      ),
     ];
     return Array.from(new Set(list)).slice(0, 50);
   }, [cleanBaseUrl, activeProducts, publishedPosts]);
@@ -421,12 +427,49 @@ export function SeoDashboardSection({
     }
   };
 
+  const persistSeoToFirestore = async (nextSettings: SeoSettings, customSuccessMsg?: string) => {
+    if (!nextSettings.siteTitle.trim() || !nextSettings.metaDescription.trim()) {
+      onFeedback({ type: 'error', text: 'SEO title and meta description are required.' });
+      return;
+    }
+    setSaving(true);
+    onFeedback(null);
+    try {
+      const saved = await saveSeoSettings(userUid, nextSettings);
+      setForm(saved);
+      setKeywordsText(saved.keywords.join(', '));
+      onFeedback({ type: 'success', text: customSuccessMsg || s.seoSavedMsg });
+    } catch (err) {
+      onFeedback({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to save SEO settings.',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = async (e?: FormEvent) => {
+    if (e) e.preventDefault();
+    await persistSeoToFirestore(liveForm);
+  };
+
   const handleApplyRecommended = () => {
-    setForm(RECOMMENDED_SEO_SETTINGS);
-    setKeywordsText(RECOMMENDED_SEO_SETTINGS.keywords.join(', '));
+    const merged: SeoSettings = {
+      ...RECOMMENDED_SEO_SETTINGS,
+      googleVerification: form.googleVerification,
+      bingVerification: form.bingVerification,
+      yandexVerification: form.yandexVerification,
+      baiduVerification: form.baiduVerification,
+      canonicalUrl: form.canonicalUrl.trim() || 'https://yilaiplastics.online',
+      indexNowKey: form.indexNowKey || RECOMMENDED_SEO_SETTINGS.indexNowKey,
+      faqItems: form.faqItems.length > 0 ? form.faqItems : RECOMMENDED_SEO_SETTINGS.faqItems,
+    };
+    setForm(merged);
+    setKeywordsText(merged.keywords.join(', '));
     onFeedback({
       type: 'success',
-      text: 'Applied top-ranking SEO preset for trigger sprayer, lotion pump, foam pump & fine mist sprayer. Click Save & Publish SEO to push live.',
+      text: 'Applied top-ranking SEO preset for https://yilaiplastics.online/ and all 4 product keyword pillars. Click Save & Publish SEO to apply across all pages, products & blog posts.',
     });
   };
 
@@ -466,30 +509,6 @@ export function SeoDashboardSection({
     }
   };
 
-  const handleSave = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!form.siteTitle.trim() || !form.metaDescription.trim()) {
-      onFeedback({ type: 'error', text: 'SEO title and meta description are required.' });
-      return;
-    }
-
-    setSaving(true);
-    onFeedback(null);
-    try {
-      const saved = await saveSeoSettings(userUid, liveForm);
-      setForm(saved);
-      setKeywordsText(saved.keywords.join(', '));
-      onFeedback({ type: 'success', text: s.seoSavedMsg });
-    } catch (err) {
-      onFeedback({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'Failed to save SEO settings.',
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const triggerDownload = (filename: string, content: string, mimeType: string) => {
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
@@ -504,25 +523,25 @@ export function SeoDashboardSection({
 
   const handleAddFaq = () => {
     if (!newFaqQuestion.trim() || !newFaqAnswer.trim()) return;
-    updateWorkspace((prev) => ({
+    setForm((prev) => ({
       ...prev,
       faqItems: [
         ...prev.faqItems,
         {
           id: `faq-${Date.now().toString(36)}`,
-          question: newFaqQuestion.trim(),
-          answer: newFaqAnswer.trim(),
+          question: newFaqQuestion.trim().slice(0, 300),
+          answer: newFaqAnswer.trim().slice(0, 1000),
         },
-      ],
+      ].slice(0, 12),
     }));
     setNewFaqQuestion('');
     setNewFaqAnswer('');
   };
 
   const handleTrackKeyword = () => {
-    const clean = customKeywordInput.trim();
+    const clean = customKeywordInput.trim().slice(0, 80);
     if (!clean) return;
-    updateWorkspace((prev) => ({
+    setForm((prev) => ({
       ...prev,
       trackedKeywords: Array.from(new Set([...prev.trackedKeywords, clean])).slice(0, 20),
     }));
@@ -539,8 +558,8 @@ export function SeoDashboardSection({
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
         body: JSON.stringify({
           host,
-          key: workspace.indexNowKey,
-          keyLocation: `${cleanBaseUrl}/${workspace.indexNowKey}.txt`,
+          key: form.indexNowKey,
+          keyLocation: `${cleanBaseUrl}/${form.indexNowKey}.txt`,
           urlList: indexNowUrlList,
         }),
       });
@@ -552,21 +571,32 @@ export function SeoDashboardSection({
       } else {
         setIndexNowResult({
           ok: false,
-          message: `IndexNow returned HTTP ${res.status}. Upload ${workspace.indexNowKey}.txt to your site root and verify your live custom domain.`,
+          message: `IndexNow returned HTTP ${res.status}. Upload ${form.indexNowKey}.txt to ${cleanBaseUrl}/${form.indexNowKey}.txt and re-run.`,
         });
       }
     } catch {
       setIndexNowResult({
         ok: false,
-        message: `Browser CORS blocked direct cross-origin POST. Download ${workspace.indexNowKey}.txt, deploy to your domain root, and run the cURL command below.`,
+        message: `Browser CORS blocked direct cross-origin POST. Download ${form.indexNowKey}.txt and host it at ${cleanBaseUrl}/${form.indexNowKey}.txt.`,
       });
     } finally {
       setPingingIndexNow(false);
     }
   };
 
+  const handleDownloadGoogleHtmlFile = () => {
+    const raw = googleHtmlFileName.trim();
+    if (!raw) return;
+    const cleanFile = raw.endsWith('.html') ? raw : `${raw}.html`;
+    triggerDownload(
+      cleanFile,
+      `google-site-verification: ${cleanFile}`,
+      'text/html;charset=utf-8'
+    );
+  };
+
   const toolTabs: Array<{ id: SeoToolTab; label: string; icon: typeof Search }> = [
-    { id: 'serp', label: 'SERP & Meta Studio', icon: Search },
+    { id: 'serp', label: 'SERP & Google Console', icon: Search },
     { id: 'keywords', label: 'Keyword Analyzer', icon: BarChart3 },
     { id: 'schema', label: 'Schema & FAQ Snippets', icon: Code2 },
     { id: 'crawlers', label: 'IndexNow & Sitemap', icon: Send },
@@ -575,10 +605,11 @@ export function SeoDashboardSection({
   ];
 
   const directoryProgressCount = workspace.completedDirectories.length;
+  const extractedGoogleToken = extractVerificationToken(form.googleVerification);
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-xs space-y-6">
-      {/* Header + Live SEO Score + Apply Recommended */}
+      {/* Header + Live SEO Score + Save & Publish */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 pb-6 border-b border-slate-100">
         <div>
           <h2 className="font-display font-extrabold text-xl sm:text-2xl text-[#0B1B3E]">
@@ -614,7 +645,47 @@ export function SeoDashboardSection({
             <Sparkles className="w-3.5 h-3.5" />
             <span>{s.seoApplyRecommendedBtn}</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#155EEF] hover:bg-[#0B1B3E] text-white text-xs font-semibold transition-colors cursor-pointer disabled:opacity-60 whitespace-nowrap shrink-0 shadow-xs"
+          >
+            {saving ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <CheckCircle2 className="w-3.5 h-3.5" />
+            )}
+            <span>{saving ? s.dashSaving : s.seoSaveBtn}</span>
+          </button>
         </div>
+      </div>
+
+      {/* Auto-Apply Global Sync Banner */}
+      <div className="rounded-2xl border border-blue-200/80 bg-[#F6F9FE] px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <p className="text-xs font-bold text-[#0B1B3E]">
+            Automatic SEO Inheritance for Every New Product &amp; Blog Post
+          </p>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            When enabled and saved, every new product model and blog post automatically receives your target keywords ({parsedKeywords.length}), canonical domain (<span className="font-mono text-[#155EEF]" dir="ltr">{cleanBaseUrl}/</span>), Google/Bing/Yandex/Baidu verification tags, OpenGraph fallback, <span className="font-mono">hreflang</span>, <span className="font-mono">FAQPage</span> schema, and live <span className="font-mono">sitemap.xml</span> listing.
+          </p>
+        </div>
+
+        <label className="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white border border-slate-200 cursor-pointer shrink-0">
+          <input
+            type="checkbox"
+            checked={form.autoApplyToNewContent}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, autoApplyToNewContent: e.target.checked }))
+            }
+            className="rounded border-slate-300 text-[#155EEF]"
+          />
+          <span className="text-xs font-bold text-[#0B1B3E] whitespace-nowrap">
+            {form.autoApplyToNewContent ? 'Auto-Apply Active' : 'Auto-Apply Paused'}
+          </span>
+        </label>
       </div>
 
       {/* 6-Tool Workspace Navigation Bar */}
@@ -641,10 +712,131 @@ export function SeoDashboardSection({
       </div>
 
       {/* ===================================================================== */}
-      {/* TOOL 1: SERP & ON-PAGE META STUDIO                                    */}
+      {/* TOOL 1: SERP, GOOGLE SEARCH CONSOLE & ON-PAGE META STUDIO             */}
       {/* ===================================================================== */}
       {activeTool === 'serp' && (
         <div className="space-y-6">
+          {/* Google Search Console Registration Assistant for https://yilaiplastics.online/ */}
+          <div className="rounded-2xl border border-emerald-200/90 bg-emerald-50/40 p-5 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-[#0B1B3E]">
+                  Google Search Console Registration —{' '}
+                  <span className="font-mono text-[#155EEF]" dir="ltr">
+                    {cleanBaseUrl}/
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-600 mt-1">
+                  Verify ownership of your domain in 60 seconds using either the HTML Meta Tag below (recommended) or an HTML verification file.
+                </p>
+              </div>
+              <a
+                href="https://search.google.com/search-console/welcome"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#0B1B3E] hover:bg-[#155EEF] text-white text-xs font-semibold transition-colors shrink-0 whitespace-nowrap"
+              >
+                <span>Open Google Search Console</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-[#0B1B3E]">1. Property URL Prefix</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('gsc-domain', `${cleanBaseUrl}/`)}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#155EEF] hover:underline cursor-pointer"
+                  >
+                    {copiedId === 'gsc-domain' ? (
+                      <Check className="w-3 h-3 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3 h-3" />
+                    )}
+                    <span>{copiedId === 'gsc-domain' ? 'Copied' : 'Copy URL'}</span>
+                  </button>
+                </div>
+                <p className="font-mono text-[11px] text-emerald-700 truncate" dir="ltr">
+                  {cleanBaseUrl}/
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-[#0B1B3E]">2. Sitemap URL to Submit</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('gsc-sitemap', `${cleanBaseUrl}/sitemap.xml`)}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#155EEF] hover:underline cursor-pointer"
+                  >
+                    {copiedId === 'gsc-sitemap' ? (
+                      <Check className="w-3 h-3 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3 h-3" />
+                    )}
+                    <span>{copiedId === 'gsc-sitemap' ? 'Copied' : 'Copy Sitemap'}</span>
+                  </button>
+                </div>
+                <p className="font-mono text-[11px] text-emerald-700 truncate" dir="ltr">
+                  {cleanBaseUrl}/sitemap.xml
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
+              <div className="lg:col-span-7 space-y-1">
+                <label className="block text-[11px] font-semibold text-[#0B1B3E]">
+                  3. Paste Google HTML Tag or Verification Code (auto-extracts token &amp; publishes to &lt;head&gt;)
+                </label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={form.googleVerification}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      googleVerification: extractVerificationToken(e.target.value),
+                    })
+                  }
+                  placeholder='Paste full <meta name="google-site-verification" content="..." /> or token'
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-mono text-[#0B1B3E] focus:outline-none focus:border-[#155EEF]"
+                />
+                {extractedGoogleToken && (
+                  <p className="text-[11px] font-mono text-emerald-700 truncate" dir="ltr">
+                    Live tag: &lt;meta name=&quot;google-site-verification&quot; content=&quot;{extractedGoogleToken}&quot; /&gt;
+                  </p>
+                )}
+              </div>
+
+              <div className="lg:col-span-5 space-y-1">
+                <label className="block text-[11px] font-semibold text-slate-600">
+                  Optional: Generate Google HTML Verification File
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={googleHtmlFileName}
+                    onChange={(e) => setGoogleHtmlFileName(e.target.value)}
+                    placeholder="google1234abcd5678.html"
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-[#0B1B3E]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleDownloadGoogleHtmlFile}
+                    disabled={!googleHtmlFileName.trim()}
+                    className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-white hover:bg-blue-50 border border-slate-200 text-xs font-semibold text-[#155EEF] disabled:opacity-50 cursor-pointer shrink-0"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>.html</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Multi-Engine SERP & Social Card Live Preview */}
           <div className="rounded-2xl border border-slate-200/90 bg-[#F8FAFE] p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -726,16 +918,15 @@ export function SeoDashboardSection({
                   {form.metaDescription ||
                     'Custom trigger sprayers, lotion pumps, foam pumps, and fine mist sprayers.'}
                 </p>
-                {workspace.enableFaqSchema && workspace.faqItems.length > 0 && (
+                {form.enableFaqSchema && form.faqItems.length > 0 && (
                   <div className="pt-2 mt-2 border-t border-slate-100 text-[11px] text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="font-semibold text-[#0B1B3E]">Rich Snippets Active:</span>
-                    <span>{workspace.faqItems[0].question.slice(0, 56)}…</span>
+                    <span>{form.faqItems[0].question.slice(0, 56)}…</span>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Pixel & Character Width Meters */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
               <div className="flex items-center justify-between gap-2 bg-white rounded-xl border border-slate-200/80 px-3.5 py-2">
                 <span className="text-slate-600 font-medium">Title Pixel Width (Google limit ~580px)</span>
@@ -763,7 +954,6 @@ export function SeoDashboardSection({
           {/* Main Editable SEO Form */}
           <form onSubmit={handleSave} className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left Column: Core On-Page & Social Tags */}
               <div className="lg:col-span-7 space-y-5">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
@@ -813,7 +1003,7 @@ export function SeoDashboardSection({
                       {s.seoFieldKeywords}
                     </label>
                     <span className="font-mono text-[11px] text-slate-500 tabular-nums">
-                      {parsedKeywords.length} / 30 keywords
+                      {parsedKeywords.length} / 30 keywords (auto-applied to new posts &amp; products)
                     </span>
                   </div>
                   <textarea
@@ -823,7 +1013,6 @@ export function SeoDashboardSection({
                     placeholder="trigger sprayer, lotion pump, foam pump, fine mist sprayer..."
                     className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm text-[#0B1B3E] focus:outline-none focus:border-[#155EEF] focus:bg-white"
                   />
-                  {/* Quick-Inject Keyword Pillar Packs */}
                   <div className="flex flex-wrap items-center gap-2 pt-1">
                     <span className="text-[11px] font-semibold text-slate-500">Quick-add packs:</span>
                     {CORE_KEYWORD_PILLARS.map((pillar) => (
@@ -850,7 +1039,7 @@ export function SeoDashboardSection({
                       dir="ltr"
                       value={form.canonicalUrl}
                       onChange={(e) => setForm({ ...form, canonicalUrl: e.target.value })}
-                      placeholder="https://www.yilaiplastics.com"
+                      placeholder="https://yilaiplastics.online"
                       className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm font-mono text-[#0B1B3E] focus:outline-none focus:border-[#155EEF] focus:bg-white"
                     />
                   </div>
@@ -971,7 +1160,7 @@ export function SeoDashboardSection({
                 </div>
               </div>
 
-              {/* Right Column: Search Engine Verification & Quick Exports */}
+              {/* Right Column: Other Webmasters, Audit Summary, Downloads */}
               <div className="lg:col-span-5 space-y-5">
                 <div className="rounded-2xl border border-slate-200/90 bg-[#F8FAFE] p-4 sm:p-5 space-y-3.5">
                   <div>
@@ -984,20 +1173,6 @@ export function SeoDashboardSection({
                   <div className="space-y-2.5">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        {s.seoGoogleLabel}
-                      </label>
-                      <input
-                        type="text"
-                        dir="ltr"
-                        maxLength={120}
-                        value={form.googleVerification}
-                        onChange={(e) => setForm({ ...form, googleVerification: e.target.value })}
-                        placeholder="google-site-verification token"
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-[#0B1B3E] focus:outline-none focus:border-[#155EEF]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                         {s.seoBingLabel}
                       </label>
                       <input
@@ -1005,7 +1180,12 @@ export function SeoDashboardSection({
                         dir="ltr"
                         maxLength={120}
                         value={form.bingVerification}
-                        onChange={(e) => setForm({ ...form, bingVerification: e.target.value })}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            bingVerification: extractVerificationToken(e.target.value),
+                          })
+                        }
                         placeholder="Bing / Yahoo verification token"
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-[#0B1B3E] focus:outline-none focus:border-[#155EEF]"
                       />
@@ -1019,7 +1199,12 @@ export function SeoDashboardSection({
                         dir="ltr"
                         maxLength={120}
                         value={form.yandexVerification}
-                        onChange={(e) => setForm({ ...form, yandexVerification: e.target.value })}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            yandexVerification: extractVerificationToken(e.target.value),
+                          })
+                        }
                         placeholder="Yandex verification token"
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-[#0B1B3E] focus:outline-none focus:border-[#155EEF]"
                       />
@@ -1033,7 +1218,12 @@ export function SeoDashboardSection({
                         dir="ltr"
                         maxLength={120}
                         value={form.baiduVerification}
-                        onChange={(e) => setForm({ ...form, baiduVerification: e.target.value })}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            baiduVerification: extractVerificationToken(e.target.value),
+                          })
+                        }
                         placeholder="Baidu verification token"
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-[#0B1B3E] focus:outline-none focus:border-[#155EEF]"
                       />
@@ -1041,7 +1231,6 @@ export function SeoDashboardSection({
                   </div>
                 </div>
 
-                {/* Live Ranking Checklist Summary */}
                 <div className="rounded-2xl border border-slate-200/90 bg-[#F8FAFE] p-4 sm:p-5 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="text-xs font-bold text-[#0B1B3E]">{s.seoChecklistTitle}</h3>
@@ -1072,7 +1261,6 @@ export function SeoDashboardSection({
                   </ul>
                 </div>
 
-                {/* Quick Sitemap & Robots Export */}
                 <div className="rounded-2xl border border-slate-200/90 bg-[#F8FAFE] p-4 sm:p-5 space-y-3">
                   <h3 className="text-xs font-bold text-[#0B1B3E]">{s.seoSitemapHeading}</h3>
                   <div className="flex flex-wrap gap-2">
@@ -1135,10 +1323,10 @@ export function SeoDashboardSection({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
             <div>
               <h3 className="text-base font-bold text-[#0B1B3E]">
-                Core Keyword Placement & Density Scanner
+                Core Keyword Placement &amp; Density Scanner
               </h3>
               <p className="text-xs text-slate-600 mt-1">
-                Live scan across your Title, Meta Description, Meta Keywords, Active Product SKUs, and Blog Posts for your target keywords.
+                Live scan across Title, Meta Description, Meta Keywords, Active Product SKUs, and Blog Posts. Remember to click Save &amp; Publish SEO to persist tracked keywords across devices.
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -1148,12 +1336,11 @@ export function SeoDashboardSection({
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#155EEF] hover:bg-[#0B1B3E] text-white text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Optimize Title & Desc for All 4</span>
+                <span>Optimize Title &amp; Desc for All 4</span>
               </button>
             </div>
           </div>
 
-          {/* Add Custom Focus Keyword */}
           <div className="flex flex-wrap items-center gap-2.5">
             <input
               type="text"
@@ -1178,7 +1365,6 @@ export function SeoDashboardSection({
             </button>
           </div>
 
-          {/* Keyword Density Matrix Table */}
           <div className="overflow-x-auto rounded-2xl border border-slate-200">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
@@ -1257,7 +1443,6 @@ export function SeoDashboardSection({
             </table>
           </div>
 
-          {/* Long-Tail B2B Keyword Generator */}
           <div className="rounded-2xl border border-slate-200/90 bg-[#F8FAFE] p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -1308,7 +1493,7 @@ export function SeoDashboardSection({
                 <option value="foam pump">Foam Pump</option>
                 <option value="fine mist sprayer">Fine Mist Sprayer</option>
                 <option value="mini trigger sprayer">Mini Trigger Sprayer</option>
-                <option value="plastic bottle cap">Bottle Cap & Closure</option>
+                <option value="plastic bottle cap">Bottle Cap &amp; Closure</option>
               </select>
 
               <select
@@ -1373,16 +1558,14 @@ export function SeoDashboardSection({
             <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-[#F8FAFE] p-4 cursor-pointer">
               <input
                 type="checkbox"
-                checked={workspace.enableFaqSchema}
-                onChange={(e) =>
-                  updateWorkspace((prev) => ({ ...prev, enableFaqSchema: e.target.checked }))
-                }
+                checked={form.enableFaqSchema}
+                onChange={(e) => setForm((prev) => ({ ...prev, enableFaqSchema: e.target.checked }))}
                 className="mt-0.5 rounded border-slate-300 text-[#155EEF]"
               />
               <div>
                 <p className="text-xs font-bold text-[#0B1B3E]">FAQPage Rich Snippets</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Expands Google search listing height with buyer Q&amp;A accordions.
+                  Expands Google search listing height with buyer Q&amp;A accordions across every page.
                 </p>
               </div>
             </label>
@@ -1390,9 +1573,9 @@ export function SeoDashboardSection({
             <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-[#F8FAFE] p-4 cursor-pointer">
               <input
                 type="checkbox"
-                checked={workspace.enableItemListSchema}
+                checked={form.enableItemListSchema}
                 onChange={(e) =>
-                  updateWorkspace((prev) => ({ ...prev, enableItemListSchema: e.target.checked }))
+                  setForm((prev) => ({ ...prev, enableItemListSchema: e.target.checked }))
                 }
                 className="mt-0.5 rounded border-slate-300 text-[#155EEF]"
               />
@@ -1407,36 +1590,44 @@ export function SeoDashboardSection({
             <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-[#F8FAFE] p-4 cursor-pointer">
               <input
                 type="checkbox"
-                checked={workspace.enableHreflangTags}
+                checked={form.enableHreflangTags}
                 onChange={(e) =>
-                  updateWorkspace((prev) => ({ ...prev, enableHreflangTags: e.target.checked }))
+                  setForm((prev) => ({ ...prev, enableHreflangTags: e.target.checked }))
                 }
                 className="mt-0.5 rounded border-slate-300 text-[#155EEF]"
               />
               <div>
                 <p className="text-xs font-bold text-[#0B1B3E]">Multilingual Hreflang Tags</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Broadcasts EN, ES &amp; AR alternate URLs to regional search indexes.
+                  Broadcasts EN, ES &amp; AR alternate URLs for every product &amp; blog post.
                 </p>
               </div>
             </label>
           </div>
 
-          {/* Interactive FAQ Builder */}
           <div className="rounded-2xl border border-slate-200/90 bg-[#F8FAFE] p-5 space-y-4">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-bold text-[#0B1B3E]">
-                  Live FAQPage Schema Questions ({workspace.faqItems.length})
+                  Live FAQPage Schema Questions ({form.faqItems.length}/12)
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Every Q&amp;A below is automatically embedded into the live site&apos;s JSON-LD structured data.
+                  Saved to Firestore and injected automatically across your homepage, products, and blog posts.
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={saving}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#155EEF] hover:bg-[#0B1B3E] text-white text-xs font-semibold cursor-pointer"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{saving ? s.dashSaving : 'Save Schema & FAQs'}</span>
+              </button>
             </div>
 
             <div className="space-y-3">
-              {workspace.faqItems.map((faq, idx) => (
+              {form.faqItems.map((faq, idx) => (
                 <div
                   key={faq.id}
                   className="bg-white rounded-xl border border-slate-200 p-4 space-y-2"
@@ -1448,7 +1639,7 @@ export function SeoDashboardSection({
                     <button
                       type="button"
                       onClick={() =>
-                        updateWorkspace((prev) => ({
+                        setForm((prev) => ({
                           ...prev,
                           faqItems: prev.faqItems.filter((item) => item.id !== faq.id),
                         }))
@@ -1483,7 +1674,7 @@ export function SeoDashboardSection({
               <button
                 type="button"
                 onClick={handleAddFaq}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#155EEF] hover:bg-[#0B1B3E] text-white text-xs font-semibold transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#0B1B3E] hover:bg-[#155EEF] text-white text-xs font-semibold transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add to Live FAQ Schema</span>
@@ -1491,7 +1682,6 @@ export function SeoDashboardSection({
             </div>
           </div>
 
-          {/* Live JSON-LD Code Inspector */}
           <div className="rounded-2xl border border-slate-200 bg-[#0B1B3E] text-slate-100 p-5 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs font-bold text-white">
@@ -1511,7 +1701,7 @@ export function SeoDashboardSection({
                   <span>{copiedId === 'jsonld' ? 'Copied' : 'Copy JSON-LD'}</span>
                 </button>
                 <a
-                  href="https://search.google.com/test/rich-results"
+                  href={`https://search.google.com/test/rich-results?url=${encodeURIComponent(`${cleanBaseUrl}/`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#155EEF] hover:bg-blue-500 text-white text-xs font-semibold"
@@ -1533,7 +1723,6 @@ export function SeoDashboardSection({
       {/* ===================================================================== */}
       {activeTool === 'crawlers' && (
         <div className="space-y-6">
-          {/* IndexNow Instant Submission */}
           <div className="rounded-2xl border border-slate-200/90 bg-[#F8FAFE] p-5 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -1541,7 +1730,11 @@ export function SeoDashboardSection({
                   IndexNow Instant Search Engine Ping (Bing · Yandex · Copilot · Seznam)
                 </h3>
                 <p className="text-xs text-slate-600 mt-1">
-                  Notify search engines the moment you publish new trigger sprayers, lotion pumps, or blog guides instead of waiting weeks for crawls.
+                  Automatically includes every new product and blog post URL on{' '}
+                  <span className="font-mono text-[#155EEF]" dir="ltr">
+                    {cleanBaseUrl}/
+                  </span>
+                  .
                 </p>
               </div>
               <button
@@ -1562,14 +1755,14 @@ export function SeoDashboardSection({
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
               <div className="sm:col-span-7 space-y-1">
                 <label className="block text-[11px] font-semibold text-slate-600">
-                  IndexNow API Key (host at /{workspace.indexNowKey}.txt)
+                  IndexNow API Key (host at {cleanBaseUrl}/{form.indexNowKey}.txt)
                 </label>
                 <input
                   type="text"
                   dir="ltr"
-                  value={workspace.indexNowKey}
+                  value={form.indexNowKey}
                   onChange={(e) =>
-                    updateWorkspace((prev) => ({
+                    setForm((prev) => ({
                       ...prev,
                       indexNowKey: e.target.value.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 64),
                     }))
@@ -1581,7 +1774,7 @@ export function SeoDashboardSection({
                 <button
                   type="button"
                   onClick={() =>
-                    updateWorkspace((prev) => ({
+                    setForm((prev) => ({
                       ...prev,
                       indexNowKey: `yilai${Math.random().toString(36).slice(2, 12)}${Date.now().toString(36)}`,
                     }))
@@ -1595,8 +1788,8 @@ export function SeoDashboardSection({
                   type="button"
                   onClick={() =>
                     triggerDownload(
-                      `${workspace.indexNowKey}.txt`,
-                      workspace.indexNowKey,
+                      `${form.indexNowKey}.txt`,
+                      form.indexNowKey,
                       'text/plain;charset=utf-8'
                     )
                   }
@@ -1621,7 +1814,6 @@ export function SeoDashboardSection({
             )}
           </div>
 
-          {/* Sitemap XML & Robots.txt Builders */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div className="rounded-2xl border border-slate-200/90 bg-[#F8FAFE] p-5 space-y-3">
               <div className="flex items-center justify-between gap-2">
@@ -1689,7 +1881,6 @@ export function SeoDashboardSection({
             </div>
           </div>
 
-          {/* Search Engine Consoles Direct Launch */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold text-[#0B1B3E]">
               Search Engine Submission &amp; Diagnostic Consoles
@@ -1759,7 +1950,7 @@ export function SeoDashboardSection({
                 Product SKU &amp; Blog Page SEO Health Matrix ({contentAuditRows.length} Indexed URLs)
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Verifies every active product model and published article has strong description length, gallery media, and target keyword alignment.
+                Every new product and blog post inherits your global SEO configuration and appears here automatically.
               </p>
             </div>
             <div className="overflow-x-auto rounded-2xl border border-slate-200">
@@ -1817,7 +2008,6 @@ export function SeoDashboardSection({
       {/* ===================================================================== */}
       {activeTool === 'backlinks' && (
         <div className="space-y-6">
-          {/* AI Search Engine llms.txt */}
           <div className="rounded-2xl border border-slate-200/90 bg-[#F8FAFE] p-5 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -1826,7 +2016,11 @@ export function SeoDashboardSection({
                   <span>AI Search Optimization (llms.txt)</span>
                 </h3>
                 <p className="text-xs text-slate-600 mt-1">
-                  Structured factory summary built for ChatGPT Search, Perplexity, Gemini, and Claude when buyers search for trigger sprayer or lotion pump manufacturers.
+                  Structured factory summary built for ChatGPT Search, Perplexity, Gemini, and Claude referencing{' '}
+                  <span className="font-mono text-[#155EEF]" dir="ltr">
+                    {cleanBaseUrl}/
+                  </span>
+                  .
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1859,20 +2053,19 @@ export function SeoDashboardSection({
             </pre>
           </div>
 
-          {/* Multilingual Hreflang & Geo Signal Status */}
           <div className="rounded-2xl border border-slate-200/90 bg-white p-5 space-y-2.5">
             <h4 className="text-xs font-bold text-[#0B1B3E]">
               Live International Hreflang &amp; Geo Meta Signals
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-[11px] font-mono">
               <div className="rounded-xl bg-[#F8FAFE] border border-slate-200 px-3 py-2 text-slate-700 truncate">
-                hreflang=&quot;en&quot; → /?lang=en
+                hreflang=&quot;en&quot; → {cleanBaseUrl}/?lang=en
               </div>
               <div className="rounded-xl bg-[#F8FAFE] border border-slate-200 px-3 py-2 text-slate-700 truncate">
-                hreflang=&quot;es&quot; → /?lang=es
+                hreflang=&quot;es&quot; → {cleanBaseUrl}/?lang=es
               </div>
               <div className="rounded-xl bg-[#F8FAFE] border border-slate-200 px-3 py-2 text-slate-700 truncate">
-                hreflang=&quot;ar&quot; → /?lang=ar
+                hreflang=&quot;ar&quot; → {cleanBaseUrl}/?lang=ar
               </div>
               <div className="rounded-xl bg-[#F8FAFE] border border-slate-200 px-3 py-2 text-slate-700 truncate">
                 geo.placename → Yuyao, Ningbo
@@ -1880,7 +2073,6 @@ export function SeoDashboardSection({
             </div>
           </div>
 
-          {/* B2B Industrial Backlink & Directory Submission Checklist */}
           <div className="rounded-2xl border border-slate-200/90 bg-[#F8FAFE] p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -1888,7 +2080,7 @@ export function SeoDashboardSection({
                   High-Authority B2B Backlink &amp; Directory Tracker
                 </h3>
                 <p className="text-xs text-slate-600 mt-0.5">
-                  On-page SEO gets you indexed; authoritative B2B backlinks push your site to #1 against competitors. Track your submissions below.
+                  On-page SEO gets you indexed; authoritative B2B backlinks push your site to #1 against competitors.
                 </p>
               </div>
               <span className="font-mono text-xs font-bold text-[#155EEF] tabular-nums">
