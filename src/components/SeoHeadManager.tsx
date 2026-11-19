@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { LanguageCode, ProductCategory, ProductVariant } from '../data/factoryData';
 import { BlogPost } from '../data/blogData';
 import { SOCIAL_PLATFORMS, SocialMediaLinks } from './SocialLinksBar';
 import { SeoSettings } from '../services/cmsService';
+import { loadSeoWorkspace, SeoProWorkspace } from '../data/seoToolkitData';
 
 interface SeoHeadManagerProps {
   seo: SeoSettings;
@@ -11,6 +12,7 @@ interface SeoHeadManagerProps {
   activePage: 'home' | 'products' | 'blog' | 'dashboard';
   activeProduct?: { category: ProductCategory; variant: ProductVariant } | null;
   activePost?: BlogPost | null;
+  categories?: ProductCategory[];
 }
 
 function upsertMeta(attrName: 'name' | 'property', key: string, content: string) {
@@ -28,12 +30,20 @@ function upsertMeta(attrName: 'name' | 'property', key: string, content: string)
   tag.setAttribute('content', content);
 }
 
-function upsertCanonical(href: string) {
+function upsertLink(rel: string, href: string, hreflang?: string) {
   const head = document.head;
-  let link = head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  const selector = hreflang
+    ? `link[rel="${rel}"][hreflang="${hreflang}"]`
+    : `link[rel="${rel}"]:not([hreflang])`;
+  let link = head.querySelector<HTMLLinkElement>(selector);
+  if (!href) {
+    if (link) link.remove();
+    return;
+  }
   if (!link) {
     link = document.createElement('link');
-    link.setAttribute('rel', 'canonical');
+    link.setAttribute('rel', rel);
+    if (hreflang) link.setAttribute('hreflang', hreflang);
     head.appendChild(link);
   }
   link.setAttribute('href', href);
@@ -53,11 +63,30 @@ export function SeoHeadManager({
   activePage,
   activeProduct,
   activePost,
+  categories = [],
 }: SeoHeadManagerProps) {
+  const [workspace, setWorkspace] = useState<SeoProWorkspace>(() => loadSeoWorkspace());
+
+  useEffect(() => {
+    const refresh = () => setWorkspace(loadSeoWorkspace());
+    window.addEventListener('yilai-seo-workspace-updated', refresh);
+    return () => window.removeEventListener('yilai-seo-workspace-updated', refresh);
+  }, []);
+
   useEffect(() => {
     const origin = window.location.origin;
-    const baseCanonical =
-      seo.canonicalUrl || `${origin}${window.location.pathname}`;
+    const baseCanonical = (seo.canonicalUrl || `${origin}${window.location.pathname}`).replace(/\/+$/, '');
+
+    let pageUrl = `${baseCanonical}/`;
+    if (activePage === 'products' && activeProduct) {
+      pageUrl = `${baseCanonical}/?page=products&product=${encodeURIComponent(activeProduct.variant.slug)}`;
+    } else if (activePage === 'products') {
+      pageUrl = `${baseCanonical}/?page=products`;
+    } else if (activePage === 'blog' && activePost) {
+      pageUrl = `${baseCanonical}/?page=blog&post=${encodeURIComponent(activePost.slug)}`;
+    } else if (activePage === 'blog') {
+      pageUrl = `${baseCanonical}/?page=blog`;
+    }
 
     let resolvedTitle = seo.siteTitle;
     let resolvedDescription = seo.metaDescription;
@@ -76,8 +105,11 @@ export function SeoHeadManager({
       const productImg = resolveShareUrl(firstPhoto, origin);
       if (productImg) resolvedImage = productImg;
     } else if (activePage === 'products') {
-      resolvedTitle = 'Products Catalogue — Trigger Sprayers & Lotion Pumps | Yi Lai';
+      resolvedTitle = 'Trigger Sprayers, Lotion Pumps, Foam & Fine Mist | Yi Lai';
+      resolvedDescription =
+        'Browse 28/410 trigger sprayers, lotion pumps, foam pumps, fine mist sprayers, and bottle closures manufactured in Yuyao, Ningbo.';
       resolvedOgTitle = resolvedTitle;
+      resolvedOgDesc = resolvedDescription;
     } else if (activePage === 'blog' && activePost) {
       resolvedTitle = `${activePost.title} | Yi Lai Factory Journal`;
       resolvedDescription = activePost.excerpt.slice(0, 160);
@@ -87,8 +119,11 @@ export function SeoHeadManager({
       const cover = resolveShareUrl(activePost.coverImage, origin);
       if (cover) resolvedImage = cover;
     } else if (activePage === 'blog') {
-      resolvedTitle = 'Factory Journal — Packaging Engineering & Export Guides | Yi Lai';
+      resolvedTitle = 'Sprayer & Pump Engineering Guides — Yi Lai Factory Journal';
+      resolvedDescription =
+        'Technical guides on trigger sprayers, lotion pumps, foam pumps, fine mist atomizers, SPI neck finishes, and 316 SS springs.';
       resolvedOgTitle = resolvedTitle;
+      resolvedOgDesc = resolvedDescription;
     }
 
     document.title = resolvedTitle;
@@ -103,16 +138,36 @@ export function SeoHeadManager({
     upsertMeta('name', 'description', resolvedDescription);
     upsertMeta('name', 'keywords', seo.keywords.join(', '));
     upsertMeta('name', 'robots', robotsContent);
+    upsertMeta('name', 'author', 'Yi Lai Plastics Industry');
+    upsertMeta('name', 'geo.region', 'CN-ZJ');
+    upsertMeta('name', 'geo.placename', 'Yuyao, Ningbo, Zhejiang, China');
 
-    upsertCanonical(baseCanonical);
+    upsertLink('canonical', pageUrl);
+
+    if (workspace.enableHreflangTags && activePage !== 'dashboard') {
+      const sep = pageUrl.includes('?') ? '&' : '?';
+      upsertLink('alternate', `${pageUrl}${sep}lang=en`, 'en');
+      upsertLink('alternate', `${pageUrl}${sep}lang=es`, 'es');
+      upsertLink('alternate', `${pageUrl}${sep}lang=ar`, 'ar');
+      upsertLink('alternate', pageUrl, 'x-default');
+    } else {
+      upsertLink('alternate', '', 'en');
+      upsertLink('alternate', '', 'es');
+      upsertLink('alternate', '', 'ar');
+      upsertLink('alternate', '', 'x-default');
+    }
 
     upsertMeta('property', 'og:type', resolvedType);
     upsertMeta('property', 'og:site_name', 'Yi Lai Plastics Industry');
     upsertMeta('property', 'og:title', resolvedOgTitle);
     upsertMeta('property', 'og:description', resolvedOgDesc);
-    upsertMeta('property', 'og:url', baseCanonical);
+    upsertMeta('property', 'og:url', pageUrl);
     upsertMeta('property', 'og:image', resolvedImage);
-    upsertMeta('property', 'og:locale', lang === 'es' ? 'es_ES' : lang === 'ar' ? 'ar_SA' : 'en_US');
+    upsertMeta(
+      'property',
+      'og:locale',
+      lang === 'es' ? 'es_ES' : lang === 'ar' ? 'ar_SA' : 'en_US'
+    );
 
     upsertMeta('name', 'twitter:card', 'summary_large_image');
     upsertMeta('name', 'twitter:title', resolvedOgTitle);
@@ -134,28 +189,124 @@ export function SeoHeadManager({
 
     const organizationNode: Record<string, unknown> = {
       '@type': 'Organization',
+      '@id': `${baseCanonical}/#organization`,
       name: 'Yi Lai Plastics Industry',
-      url: baseCanonical,
+      url: `${baseCanonical}/`,
       description: seo.metaDescription,
       telephone: '+86-137-5705-0848',
+      knowsAbout: [
+        'Trigger Sprayers',
+        'Lotion Pumps',
+        'Foam Pumps',
+        'Fine Mist Sprayers',
+        'Plastic Bottle Closures',
+        'Injection Moulding',
+      ],
+      areaServed: ['Global', 'North America', 'Europe', 'Middle East', 'South America', 'Southeast Asia'],
       address: {
         '@type': 'PostalAddress',
         addressLocality: 'Yuyao',
         addressRegion: 'Ningbo, Zhejiang',
         addressCountry: 'CN',
       },
+      ...(resolvedImage ? { logo: resolvedImage } : {}),
       ...(sameAsUrls.length > 0 ? { sameAs: sameAsUrls } : {}),
     };
 
     const websiteNode: Record<string, unknown> = {
       '@type': 'WebSite',
+      '@id': `${baseCanonical}/#website`,
       name: 'Yi Lai Plastics Industry',
-      url: baseCanonical,
+      url: `${baseCanonical}/`,
       description: seo.metaDescription,
       inLanguage: ['en', 'es', 'ar'],
+      publisher: { '@id': `${baseCanonical}/#organization` },
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: `${baseCanonical}/?page=products&q={search_term_string}`,
+        'query-input': 'required name=search_term_string',
+      },
     };
 
-    const graphNodes: Record<string, unknown>[] = [organizationNode, websiteNode];
+    const breadcrumbItems: Array<Record<string, unknown>> = [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: `${baseCanonical}/`,
+      },
+    ];
+    if (activePage === 'products') {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Products Catalogue',
+        item: `${baseCanonical}/?page=products`,
+      });
+      if (activeProduct) {
+        breadcrumbItems.push({
+          '@type': 'ListItem',
+          position: 3,
+          name: activeProduct.variant.model,
+          item: pageUrl,
+        });
+      }
+    } else if (activePage === 'blog') {
+      breadcrumbItems.push({
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Factory Journal',
+        item: `${baseCanonical}/?page=blog`,
+      });
+      if (activePost) {
+        breadcrumbItems.push({
+          '@type': 'ListItem',
+          position: 3,
+          name: activePost.title,
+          item: pageUrl,
+        });
+      }
+    }
+
+    const breadcrumbNode: Record<string, unknown> = {
+      '@type': 'BreadcrumbList',
+      itemListElement: breadcrumbItems,
+    };
+
+    const graphNodes: Record<string, unknown>[] = [
+      organizationNode,
+      websiteNode,
+      breadcrumbNode,
+    ];
+
+    if (workspace.enableItemListSchema && categories.length > 0 && activePage !== 'dashboard') {
+      graphNodes.push({
+        '@type': 'ItemList',
+        name: 'Yi Lai Plastics Trigger Sprayers, Lotion Pumps, Foam Pumps & Fine Mist Sprayers',
+        numberOfItems: categories.length,
+        itemListElement: categories.map((cat, idx) => ({
+          '@type': 'ListItem',
+          position: idx + 1,
+          name: cat.name,
+          description: cat.summary,
+          url: `${baseCanonical}/?page=products&category=${encodeURIComponent(cat.id)}`,
+        })),
+      });
+    }
+
+    if (workspace.enableFaqSchema && workspace.faqItems.length > 0 && activePage !== 'dashboard') {
+      graphNodes.push({
+        '@type': 'FAQPage',
+        mainEntity: workspace.faqItems.map((faq) => ({
+          '@type': 'Question',
+          name: faq.question,
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: faq.answer,
+          },
+        })),
+      });
+    }
 
     if (activePage === 'products' && activeProduct) {
       graphNodes.push({
@@ -169,6 +320,23 @@ export function SeoHeadManager({
           '@type': 'Brand',
           name: 'Yi Lai Plastics',
         },
+        manufacturer: { '@id': `${baseCanonical}/#organization` },
+        additionalProperty: [
+          { '@type': 'PropertyValue', name: 'SPI Neck Finish', value: activeProduct.variant.neckFinish },
+          { '@type': 'PropertyValue', name: 'Dosage Output', value: activeProduct.variant.dosage },
+          { '@type': 'PropertyValue', name: 'Spring System', value: activeProduct.variant.springType },
+          { '@type': 'PropertyValue', name: 'MOQ', value: activeProduct.variant.moq },
+        ],
+        offers: {
+          '@type': 'Offer',
+          availability: 'https://schema.org/InStock',
+          priceCurrency: 'USD',
+          businessFunction: 'http://purl.org/goodrelations/v1#Sell',
+          eligibleQuantity: {
+            '@type': 'QuantitativeValue',
+            value: activeProduct.variant.moq,
+          },
+        },
         ...(resolvedImage ? { image: [resolvedImage] } : {}),
       });
     } else if (activePage === 'blog' && activePost) {
@@ -177,6 +345,8 @@ export function SeoHeadManager({
         headline: activePost.title,
         description: activePost.excerpt,
         datePublished: activePost.publishedAt,
+        articleSection: activePost.category,
+        keywords: activePost.tags.join(', '),
         author: {
           '@type': 'Organization',
           name: activePost.authorName,
@@ -200,7 +370,7 @@ export function SeoHeadManager({
       '@context': 'https://schema.org',
       '@graph': graphNodes,
     });
-  }, [seo, socialLinks, lang, activePage, activeProduct, activePost]);
+  }, [seo, socialLinks, lang, activePage, activeProduct, activePost, categories, workspace]);
 
   return null;
 }

@@ -1,0 +1,23 @@
+# Yi Lai Plastics Industry
+
+> ISO 9001 manufacturer of trigger sprayers, lotion pumps, foam pumps, fine mist sprayers, and custom plastic bottle closures in Yuyao, Ningbo, Zhejiang, China.
+
+## Core Product Categories
+- **Trigger Sprayers**: 28/400 & 28/410 standard, heavy-duty chemical-resistant (316 SS spring), and stream/mist/off nozzles
+- **Mini Trigger Sprayers**: 20/410 & 24/410 ergonomic cosmetic and auto-detailing triggers
+- **Foam Pumps & Foam Trigger Sprayers**: 40/400 foaming soap dispensers & 28/410 aerated foam triggers
+- **Lotion Pumps**: 24/410 & 28/410 clip-lock and screw-lock dispensers (1.8 ml – 4.0 ml dosage)
+- **Fine Mist Sprayers**: 18/415, 20/410, 24/410 cosmetic and fragrance atomizers
+- **Bottle Caps & Closures**: Flip-top caps, disc-top caps, and ribbed closures
+
+## Factory Capabilities
+- 65+ injection moulding machines and automated assembly lines in Yuyao, Ningbo
+- -0.06 MPa vacuum leak testing & 100% spray inspection
+- In-house Pantone masterbatch colour matching & custom mould tooling
+- Direct FOB Ningbo container consolidation & free 50-piece sample evaluation kits
+
+## Key URLs
+- Home: /
+- Products Catalogue: /?page=products
+- Factory Journal: /?page=blog
+- XML Sitemap: /sitemap.xml

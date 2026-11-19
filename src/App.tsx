@@ -245,6 +245,7 @@ export default function App() {
         activePage={activePage}
         activeProduct={activeProductDetail}
         activePost={activeBlogPostDetail}
+        categories={storefrontCategories}
       />
       <div className="min-h-screen flex flex-col bg-[#F6F9FE] text-[#0B1B3E]">
         <Header

@@ -100,23 +100,25 @@ export interface SeoSettings {
 }
 
 export const DEFAULT_SEO_SETTINGS: SeoSettings = {
-  siteTitle: 'Yi Lai Plastics — Trigger Sprayers & Lotion Pumps',
+  siteTitle: 'Yi Lai Plastics — Trigger Sprayer, Lotion Pump & Mist Factory',
   metaDescription:
-    'Custom trigger sprayers, lotion pumps, fine mist atomizers, and bottle closures manufactured in Yuyao, Ningbo with direct FOB export.',
+    'ISO 9001 manufacturer of trigger sprayers, lotion pumps, foam pumps, and fine mist sprayers in Yuyao, Ningbo. Custom Pantone OEM & direct FOB export.',
   keywords: [
+    'trigger sprayer',
+    'lotion pump',
+    'foam pump',
+    'fine mist sprayer',
     'trigger sprayer manufacturer',
-    'lotion pump factory',
-    'fine mist sprayer supplier',
-    'Yuyao plastic dispensers',
-    '28/410 trigger sprayer',
-    'OEM packaging Ningbo',
-    'foam trigger sprayer wholesale',
-    'bottle closure factory China',
+    'lotion pump factory China',
+    'foam trigger sprayer OEM',
+    '28/410 trigger sprayer wholesale',
+    'fine mist atomizer supplier',
+    'Yuyao plastic dispensers Ningbo',
   ],
   canonicalUrl: '',
-  ogTitle: 'Yi Lai Plastics — Trigger Sprayers & Lotion Pumps',
+  ogTitle: 'Yi Lai Plastics — Trigger Sprayer, Lotion Pump & Mist Factory',
   ogDescription:
-    'Custom trigger sprayers, lotion pumps, fine mist atomizers, and bottle closures manufactured in Yuyao, Ningbo with direct FOB export.',
+    'ISO 9001 manufacturer of trigger sprayers, lotion pumps, foam pumps, and fine mist sprayers in Yuyao, Ningbo. Custom Pantone OEM & direct FOB export.',
   ogImage: '/src/assets/images/product_trigger_sprayer_1795008502569.jpg',
   robotsIndex: true,
   googleVerification: '',
@@ -127,24 +129,29 @@ export const DEFAULT_SEO_SETTINGS: SeoSettings = {
 
 export const RECOMMENDED_SEO_SETTINGS: SeoSettings = {
   ...DEFAULT_SEO_SETTINGS,
-  siteTitle: 'Yi Lai Plastics — Trigger Sprayer & Pump Factory China',
+  siteTitle: 'Trigger Sprayer, Lotion, Foam & Fine Mist Pump | Yi Lai',
   metaDescription:
-    'ISO 9001 manufacturer of 28/410 trigger sprayers, lotion pumps, fine mist atomizers & closures in Yuyao, Ningbo. Fast tooling & direct FOB export.',
+    'Top China factory for trigger sprayers, lotion pumps, foam pumps & fine mist sprayers (24/410, 28/410). Custom Pantone, 316 SS springs & FOB Ningbo.',
   keywords: [
+    'trigger sprayer',
+    'lotion pump',
+    'foam pump',
+    'fine mist sprayer',
     'trigger sprayer manufacturer China',
     '28/410 trigger sprayer wholesale',
     'lotion pump supplier Ningbo',
-    'fine mist atomizer factory',
-    'foam trigger dispenser OEM',
-    'plastic bottle closures Yuyao',
-    'custom Pantone trigger sprayer',
+    'foam pump manufacturer OEM',
+    'fine mist sprayer factory',
+    '24/410 lotion pump dispenser',
+    '20/410 fine mist atomizer',
+    'foam trigger sprayer 28/410',
     'chemical resistant 316 spring sprayer',
+    'custom Pantone bottle closures Yuyao',
     'Yi Lai Plastics Industry',
-    'FOB Ningbo packaging export',
   ],
-  ogTitle: 'Yi Lai Plastics — Trigger Sprayer & Pump Factory China',
+  ogTitle: 'Trigger Sprayer, Lotion, Foam & Fine Mist Pump | Yi Lai',
   ogDescription:
-    'ISO 9001 manufacturer of 28/410 trigger sprayers, lotion pumps, fine mist atomizers & closures in Yuyao, Ningbo. Fast tooling & direct FOB export.',
+    'Top China factory for trigger sprayers, lotion pumps, foam pumps & fine mist sprayers (24/410, 28/410). Custom Pantone, 316 SS springs & FOB Ningbo.',
 };
 
 const VALID_PRODUCT_CATEGORIES = new Set([
