@@ -28,7 +28,10 @@ service cloud.firestore {
     // Token-only verified primary admin check (zero DB reads for safe allow list queries)
     function isPrimaryAdmin() {
       return isSignedIn()
+        && 'email_verified' in request.auth.token
         && request.auth.token.email_verified == true
+        && 'email' in request.auth.token
+        && request.auth.token.email is string
         && request.auth.token.email.lower() == 'vvx71336@gmail.com';
     }
 
@@ -36,6 +39,7 @@ service cloud.firestore {
     function isAdmin() {
       return isPrimaryAdmin()
         || (isSignedIn()
+            && 'email_verified' in request.auth.token
             && request.auth.token.email_verified == true
             && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
     }
@@ -54,14 +58,14 @@ service cloud.firestore {
     function isValidSocialUrl(url) {
       return url is string
         && url.size() <= 300
-        && (url == '' || url.matches('^(https?://|mailto:).*'));
+        && (url == '' || url.lower().matches('^(https?://|mailto:).*'));
     }
 
     function isValidSocialLinkItem(url) {
       return url is string
         && url.size() >= 1
         && url.size() <= 300
-        && url.matches('^(https?://|mailto:).*');
+        && url.lower().matches('^(https?://|mailto:).*');
     }
 
     function isValidSocialAccountList(listVal) {

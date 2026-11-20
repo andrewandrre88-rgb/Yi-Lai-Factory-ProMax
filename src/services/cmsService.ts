@@ -262,7 +262,7 @@ function normalizeSocialUrl(raw: unknown, platform?: SocialPlatformKey): string 
       return `mailto:${trimmed.slice(7).trim()}`.slice(0, 300);
     }
     if (/^https?:\/\//i.test(trimmed)) {
-      return trimmed.slice(0, 300);
+      return trimmed.replace(/^https?:\/\//i, (m) => m.toLowerCase()).slice(0, 300);
     }
     if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) {
       return `mailto:${trimmed}`.slice(0, 300);
@@ -270,7 +270,9 @@ function normalizeSocialUrl(raw: unknown, platform?: SocialPlatformKey): string 
     return `https://${trimmed}`.slice(0, 300);
   }
 
-  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  const withScheme = /^https?:\/\//i.test(trimmed)
+    ? trimmed.replace(/^https?:\/\//i, (m) => m.toLowerCase())
+    : `https://${trimmed}`;
   return withScheme.slice(0, 300);
 }
 
@@ -739,8 +741,12 @@ async function resolveUniqueDocId(
     maxLen
   );
   const firstRef = doc(db, collectionName, base);
-  const firstSnap = await getDoc(firstRef);
-  if (!firstSnap.exists()) return base;
+  try {
+    const firstSnap = await getDoc(firstRef);
+    if (!firstSnap.exists()) return base;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, `${collectionName}/${base}`);
+  }
 
   const suffix = `-${Date.now().toString(36).slice(-5)}`;
   return `${base.slice(0, Math.max(1, maxLen - suffix.length))}${suffix}`;
