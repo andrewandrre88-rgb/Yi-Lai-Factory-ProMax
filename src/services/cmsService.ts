@@ -972,19 +972,84 @@ export async function saveProduct(
         galleryUrls: normalized.galleryUrls,
         galleryLabels: normalized.galleryLabels,
         status: normalized.status,
-        socialLinks: normalized.socialLinks,
+        ...(hasAnySocialLink(normalized.socialLinks)
+          ? { socialLinks: normalized.socialLinks }
+          : {}),
         updatedAt: serverTimestamp(),
       });
     } else {
-      await setDoc(ref, {
-        ...normalized,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      const { socialLinks: normalizedSocial, ...coreFields } = normalized;
+      const createPayload: Record<string, unknown> = hasAnySocialLink(normalizedSocial)
+        ? {
+            ...coreFields,
+            socialLinks: normalizedSocial,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          }
+        : {
+            ...coreFields,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          };
+      try {
+        await setDoc(ref, createPayload);
+      } catch (writeErr) {
+        const checks: string[] = [];
+        if (!/^[a-zA-Z0-9_-]{1,128}$/.test(docId)) checks.push(`badId:${docId}`);
+        if (!VALID_PRODUCT_CATEGORIES.has(normalized.categoryId)) checks.push(`badCat:${normalized.categoryId}`);
+        if (!/^[a-zA-Z0-9_-]{1,80}$/.test(normalized.slug)) checks.push(`badSlug:${normalized.slug}`);
+        const strLimits: Array<[string, string, number]> = [
+          ['model', normalized.model, 140],
+          ['neckFinish', normalized.neckFinish, 80],
+          ['dosage', normalized.dosage, 80],
+          ['closureStyle', normalized.closureStyle, 120],
+          ['springType', normalized.springType, 120],
+          ['moq', normalized.moq, 60],
+          ['materials', normalized.materials, 200],
+          ['leadTime', normalized.leadTime, 60],
+          ['applications', normalized.applications, 300],
+          ['description', normalized.description, 2000],
+          ['authorUid', normalized.authorUid, 128],
+        ];
+        for (const [k, v, max] of strLimits) {
+          if (typeof v !== 'string' || v.length < 1 || v.length > max) {
+            checks.push(`badStr:${k}=${typeof v}:${String(v).length}`);
+          }
+        }
+        if (normalized.status !== 'active' && normalized.status !== 'archived') {
+          checks.push(`badStatus:${normalized.status}`);
+        }
+        if (normalized.features.length < 1 || normalized.features.length > 10 || normalized.features[0].length > 240) {
+          checks.push(`badFeatures:${normalized.features.length}`);
+        }
+        if (normalized.galleryUrls.length < 1 || normalized.galleryUrls.length > 6 || normalized.galleryUrls[0].length > 100000) {
+          checks.push(`badGalleryUrls:${normalized.galleryUrls.length}/${normalized.galleryUrls[0]?.length ?? 0}`);
+        }
+        if (normalized.galleryLabels.length !== normalized.galleryUrls.length || normalized.galleryLabels[0].length > 120) {
+          checks.push(`badGalleryLabels:${normalized.galleryLabels.length}`);
+        }
+        if (hasAnySocialLink(normalizedSocial)) {
+          for (const p of SOCIAL_PLATFORMS) {
+            const arr = normalizedSocial[p.key];
+            if (!Array.isArray(arr) || arr.length > 5 || arr.some((u) => !/^(https?:\/\/|mailto:)/i.test(u) || u.length > 300)) {
+              checks.push(`badSocial:${p.key}`);
+            }
+          }
+        }
+        const diagSummary =
+          checks.length > 0
+            ? checks.join(',')
+            : `clientChecksOK;keys=${Object.keys(createPayload).length};hasSocial=${hasAnySocialLink(normalizedSocial)};gallery0Len=${normalized.galleryUrls[0]?.length ?? 0};uidLen=${uid.length};slug=${normalized.slug}`;
+        const baseMsg = writeErr instanceof Error ? writeErr.message : String(writeErr);
+        throw new Error(`${baseMsg} [diag: ${diagSummary}]`);
+      }
     }
 
     return docId;
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('{"error":')) {
+      throw error;
+    }
     handleFirestoreError(
       error,
       existingId ? OperationType.UPDATE : OperationType.CREATE,
@@ -1040,15 +1105,27 @@ export async function saveBlogPost(
         updatedAt: serverTimestamp(),
       });
     } else {
-      await setDoc(ref, {
-        ...normalized,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      const { socialLinks: normalizedSocial, ...coreFields } = normalized;
+      const createPayload = hasAnySocialLink(normalizedSocial)
+        ? {
+            ...coreFields,
+            socialLinks: normalizedSocial,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          }
+        : {
+            ...coreFields,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          };
+      await setDoc(ref, createPayload);
     }
 
     return docId;
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('{"error":')) {
+      throw error;
+    }
     handleFirestoreError(
       error,
       existingId ? OperationType.UPDATE : OperationType.CREATE,

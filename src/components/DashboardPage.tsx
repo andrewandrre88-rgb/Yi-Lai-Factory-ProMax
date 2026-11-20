@@ -328,11 +328,12 @@ export function DashboardPage({
   const openAddProductModal = () => {
     setEditingProductId(null);
     setProductUploadError(null);
+    setFeedback(null);
     setProductForm({
       ...EMPTY_PRODUCT_FORM,
       galleryUrls: [STUDIO_IMAGE_PRESETS[0].src],
       galleryLabels: ['Studio Front Profile'],
-      socialLinks: { ...socialLinks },
+      socialLinks: undefined,
     });
     setFeaturesText(
       'Self-priming within 3 to 4 strokes\nVacuum leak tested at -0.06 MPa\nCustom Pantone colours & logo imprinting available'
@@ -343,6 +344,7 @@ export function DashboardPage({
   const openEditProductModal = (item: CmsProductRecord) => {
     setEditingProductId(item.id);
     setProductUploadError(null);
+    setFeedback(null);
     setProductForm({
       categoryId: item.categoryId,
       slug: item.slug,
@@ -361,7 +363,7 @@ export function DashboardPage({
       galleryLabels:
         item.galleryLabels.length > 0 ? [...item.galleryLabels] : ['Studio View'],
       status: item.status,
-      socialLinks: hasAnySocialLink(item.socialLinks) ? item.socialLinks : { ...socialLinks },
+      socialLinks: hasAnySocialLink(item.socialLinks) ? item.socialLinks : undefined,
     });
     setFeaturesText(item.features.join('\n'));
     setProductModalOpen(true);
@@ -457,15 +459,9 @@ export function DashboardPage({
         .map((line) => line.trim())
         .filter(Boolean);
 
-      const finalSlug = productForm.slug.trim()
+      const finalSlug = editingProductId && productForm.slug.trim()
         ? sanitizeSlug(productForm.slug, 'yl-model')
         : sanitizeSlug(productForm.model, 'yl-model');
-
-      const attachedSocial = editingProductId
-        ? hasAnySocialLink(productForm.socialLinks)
-          ? productForm.socialLinks
-          : socialLinks
-        : socialLinks;
 
       await saveProduct(
         user.uid,
@@ -473,7 +469,9 @@ export function DashboardPage({
           ...productForm,
           slug: finalSlug,
           features: parsedFeatures.length > 0 ? parsedFeatures : ['Precision Yi Lai tooling'],
-          socialLinks: attachedSocial,
+          socialLinks: editingProductId && hasAnySocialLink(productForm.socialLinks)
+            ? productForm.socialLinks
+            : undefined,
         },
         editingProductId ?? undefined
       );
@@ -1468,33 +1466,18 @@ export function DashboardPage({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-[#0B1B3E] mb-1.5">
-                    {s.fieldModel}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={productForm.model}
-                    onChange={(e) => setProductForm({ ...productForm, model: e.target.value })}
-                    placeholder="YL-TS28X Heavy Trigger"
-                    className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm text-[#0B1B3E]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#0B1B3E] mb-1.5">
-                    {s.fieldSlug}
-                  </label>
-                  <input
-                    type="text"
-                    value={productForm.slug}
-                    onChange={(e) => setProductForm({ ...productForm, slug: e.target.value })}
-                    placeholder="yl-ts28x"
-                    disabled={Boolean(editingProductId)}
-                    className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm font-mono text-[#0B1B3E] disabled:opacity-60"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#0B1B3E] mb-1.5">
+                  {s.fieldModel}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={productForm.model}
+                  onChange={(e) => setProductForm({ ...productForm, model: e.target.value })}
+                  placeholder="YL-TS28X Heavy Trigger"
+                  className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm text-[#0B1B3E]"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1504,7 +1487,6 @@ export function DashboardPage({
                   </label>
                   <input
                     type="text"
-                    required
                     value={productForm.neckFinish}
                     onChange={(e) => setProductForm({ ...productForm, neckFinish: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm text-[#0B1B3E]"
@@ -1516,7 +1498,6 @@ export function DashboardPage({
                   </label>
                   <input
                     type="text"
-                    required
                     value={productForm.dosage}
                     onChange={(e) => setProductForm({ ...productForm, dosage: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm text-[#0B1B3E]"
@@ -1742,7 +1723,7 @@ export function DashboardPage({
                           nextUrls[idx] = e.target.value;
                           setProductForm({ ...productForm, galleryUrls: nextUrls });
                         }}
-                        className="sm:col-span-4 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-[#0B1B3E]"
+                        className="sm:col-span-6 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-[#0B1B3E]"
                       >
                         <option value="">{s.fieldPresetSelect}</option>
                         {STUDIO_IMAGE_PRESETS.map((preset) => (
@@ -1754,18 +1735,6 @@ export function DashboardPage({
 
                       <input
                         type="text"
-                        value={url.startsWith('data:image/') ? '[Uploaded Photo Ready]' : url}
-                        onChange={(e) => {
-                          const nextUrls = [...productForm.galleryUrls];
-                          nextUrls[idx] = e.target.value;
-                          setProductForm({ ...productForm, galleryUrls: nextUrls });
-                        }}
-                        placeholder={s.fieldCustomUrlPlaceholder}
-                        className="sm:col-span-4 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-mono text-[#0B1B3E]"
-                      />
-
-                      <input
-                        type="text"
                         value={productForm.galleryLabels[idx] || ''}
                         onChange={(e) => {
                           const nextLabels = [...productForm.galleryLabels];
@@ -1773,7 +1742,7 @@ export function DashboardPage({
                           setProductForm({ ...productForm, galleryLabels: nextLabels });
                         }}
                         placeholder={s.fieldImageCaptionPlaceholder}
-                        className="sm:col-span-3 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-[#0B1B3E]"
+                        className="sm:col-span-5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-[#0B1B3E]"
                       />
 
                       <div className="sm:col-span-1 flex justify-end">
@@ -1798,93 +1767,12 @@ export function DashboardPage({
                 ))}
               </div>
 
-              {/* Auto-Attached Social Media Links Preview */}
-              <div className="rounded-2xl bg-[#F8FAFE] border border-slate-200/80 p-4 space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-bold text-[#0B1B3E]">{s.socialAutoAttachLabel}</p>
-                    <p className="text-[11px] text-slate-500">{s.socialAutoAttachSub}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProductModalOpen(false);
-                      setActiveTab('social');
-                    }}
-                    className="text-xs font-semibold text-[#155EEF] hover:underline cursor-pointer"
-                  >
-                    {s.socialManageShortcut}
-                  </button>
+              {feedback?.type === 'error' && (
+                <div className="flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-xs font-medium text-[#E1262D] break-words">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{feedback.text}</span>
                 </div>
-                {hasAnySocialLink(socialLinks) ? (
-                  <SocialLinksBar links={socialLinks} lang={lang} compact />
-                ) : (
-                  <p className="text-xs text-slate-500">{s.socialNoLinksYet}</p>
-                )}
-              </div>
-
-              {/* Auto-Applied SEO Studio Configuration Preview */}
-              <div className="rounded-2xl bg-[#F8FAFE] border border-slate-200/80 p-4 space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Search className="w-4 h-4 text-[#155EEF]" />
-                    <div>
-                      <p className="text-xs font-bold text-[#0B1B3E]">
-                        Auto-Applied SEO Configuration
-                      </p>
-                      <p className="text-[11px] text-slate-500">
-                        {seoSettings.autoApplyToNewContent !== false
-                          ? 'Everything configured in SEO Studio automatically applies to this product page.'
-                          : 'Auto-inheritance is paused in SEO Studio (canonical & core tags still apply).'}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProductModalOpen(false);
-                      setActiveTab('seo');
-                    }}
-                    className="text-xs font-semibold text-[#155EEF] hover:underline cursor-pointer whitespace-nowrap"
-                  >
-                    Edit SEO settings
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                  <div className="rounded-xl bg-white border border-slate-200/70 px-3 py-2">
-                    <span className="font-semibold text-slate-500 block mb-0.5">
-                      Canonical URL
-                    </span>
-                    <span className="font-mono text-[#0B1B3E] break-all">
-                      {`${(seoSettings.canonicalUrl || 'https://yilaiplastics.online').replace(/\/+$/, '')}/?page=products&product=${sanitizeSlug(
-                        productForm.slug.trim() || productForm.model.trim(),
-                        'yl-model'
-                      )}`}
-                    </span>
-                  </div>
-                  <div className="rounded-xl bg-white border border-slate-200/70 px-3 py-2">
-                    <span className="font-semibold text-slate-500 block mb-0.5">
-                      Inherited Schema &amp; Verification
-                    </span>
-                    <span className="text-[#0B1B3E] font-medium">
-                      Product + Breadcrumb
-                      {seoSettings.enableFaqSchema !== false ? ' + FAQPage' : ''}
-                      {seoSettings.enableHreflangTags !== false ? ' + hreflang' : ''}
-                      {seoSettings.googleVerification ? ' + Google Console' : ''}
-                    </span>
-                  </div>
-                </div>
-                {seoSettings.autoApplyToNewContent !== false &&
-                  seoSettings.keywords.length > 0 && (
-                    <p className="text-[11px] text-slate-600">
-                      <span className="font-semibold text-[#0B1B3E]">Target Keywords: </span>
-                      {seoSettings.keywords.slice(0, 6).join(', ')}
-                      {seoSettings.keywords.length > 6
-                        ? ` (+${seoSettings.keywords.length - 6} more)`
-                        : ''}
-                    </p>
-                  )}
-              </div>
+              )}
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
                 <button

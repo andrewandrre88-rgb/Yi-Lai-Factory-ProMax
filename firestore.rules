@@ -25,6 +25,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isServerTimestamp(ts) {
+      return ts is timestamp
+        && (ts == request.time
+            || (ts >= request.time - duration.value(30, 's')
+                && ts <= request.time + duration.value(30, 's')));
+    }
+
     // Token-only verified primary admin check (zero DB reads for safe allow list queries)
     function isPrimaryAdmin() {
       return isSignedIn()
@@ -55,17 +62,22 @@ service cloud.firestore {
       ];
     }
 
+    function hasAllowedSocialPrefix(url) {
+      return (url.size() >= 7 && (url.lower()[0:7] == 'http://' || url.lower()[0:7] == 'mailto:'))
+        || (url.size() >= 8 && url.lower()[0:8] == 'https://');
+    }
+
     function isValidSocialUrl(url) {
       return url is string
         && url.size() <= 300
-        && (url == '' || url.lower().matches('^(https?://|mailto:).*'));
+        && (url == '' || hasAllowedSocialPrefix(url));
     }
 
     function isValidSocialLinkItem(url) {
       return url is string
         && url.size() >= 1
         && url.size() <= 300
-        && url.lower().matches('^(https?://|mailto:).*');
+        && hasAllowedSocialPrefix(url);
     }
 
     function isValidSocialAccountList(listVal) {
@@ -245,7 +257,7 @@ service cloud.firestore {
         && data.siteTitle is string && data.siteTitle.size() >= 1 && data.siteTitle.size() <= 120
         && data.metaDescription is string && data.metaDescription.size() >= 1 && data.metaDescription.size() <= 320
         && data.keywords is list && data.keywords.size() <= 30 && (data.keywords.size() == 0 || (data.keywords[0] is string && data.keywords[0].size() <= 60))
-        && data.canonicalUrl is string && data.canonicalUrl.size() <= 300 && (data.canonicalUrl == '' || data.canonicalUrl.matches('^https?://.*'))
+        && data.canonicalUrl is string && data.canonicalUrl.size() <= 300 && (data.canonicalUrl == '' || data.canonicalUrl.lower().matches('^https?://.*'))
         && data.ogTitle is string && data.ogTitle.size() <= 120
         && data.ogDescription is string && data.ogDescription.size() <= 320
         && data.ogImage is string && data.ogImage.size() <= 100000
@@ -275,8 +287,8 @@ service cloud.firestore {
         && isValidId(productId)
         && isValidProduct(incoming())
         && incoming().authorUid == request.auth.uid
-        && incoming().createdAt == request.time
-        && incoming().updatedAt == request.time
+        && isServerTimestamp(incoming().createdAt)
+        && isServerTimestamp(incoming().updatedAt)
         && isAdmin();
 
       allow update: if isSignedIn()
@@ -284,7 +296,7 @@ service cloud.firestore {
         && isValidProduct(incoming())
         && incoming().authorUid == existing().authorUid
         && incoming().createdAt == existing().createdAt
-        && incoming().updatedAt == request.time
+        && isServerTimestamp(incoming().updatedAt)
         && isAdmin()
         && incoming().diff(existing()).affectedKeys().hasOnly([
           'categoryId', 'slug', 'model', 'neckFinish', 'dosage', 'closureStyle',
@@ -306,8 +318,8 @@ service cloud.firestore {
         && isValidId(postId)
         && isValidBlogPost(incoming())
         && incoming().authorUid == request.auth.uid
-        && incoming().createdAt == request.time
-        && incoming().updatedAt == request.time
+        && isServerTimestamp(incoming().createdAt)
+        && isServerTimestamp(incoming().updatedAt)
         && isAdmin();
 
       allow update: if isSignedIn()
@@ -315,7 +327,7 @@ service cloud.firestore {
         && isValidBlogPost(incoming())
         && incoming().authorUid == existing().authorUid
         && incoming().createdAt == existing().createdAt
-        && incoming().updatedAt == request.time
+        && isServerTimestamp(incoming().updatedAt)
         && isAdmin()
         && incoming().diff(existing()).affectedKeys().hasOnly([
           'slug', 'title', 'excerpt', 'content', 'category', 'coverImage',
@@ -336,15 +348,15 @@ service cloud.firestore {
         && isValidId(configId)
         && isValidSiteConfig(incoming())
         && incoming().updatedBy == request.auth.uid
-        && incoming().createdAt == request.time
-        && incoming().updatedAt == request.time
+        && isServerTimestamp(incoming().createdAt)
+        && isServerTimestamp(incoming().updatedAt)
         && isAdmin();
 
       allow update: if isSignedIn()
         && isValidId(configId)
         && isValidSiteConfig(incoming())
         && incoming().createdAt == existing().createdAt
-        && incoming().updatedAt == request.time
+        && isServerTimestamp(incoming().updatedAt)
         && isAdmin()
         && incoming().diff(existing()).affectedKeys().hasOnly([
           'seeded', 'updatedBy', 'updatedAt'
@@ -360,7 +372,7 @@ service cloud.firestore {
       allow create: if isPrimaryAdmin()
         && isValidId(adminUid)
         && isValidAdminUser(incoming())
-        && incoming().createdAt == request.time;
+        && isServerTimestamp(incoming().createdAt);
       allow update: if false;
       allow delete: if isPrimaryAdmin() && isValidId(adminUid);
     }
@@ -374,8 +386,8 @@ service cloud.firestore {
         && isValidId(settingId)
         && isValidSocialSettings(incoming())
         && incoming().updatedBy == request.auth.uid
-        && incoming().createdAt == request.time
-        && incoming().updatedAt == request.time
+        && isServerTimestamp(incoming().createdAt)
+        && isServerTimestamp(incoming().updatedAt)
         && isAdmin();
 
       allow update: if isSignedIn()
@@ -383,7 +395,7 @@ service cloud.firestore {
         && isValidSocialSettings(incoming())
         && incoming().updatedBy == request.auth.uid
         && incoming().createdAt == existing().createdAt
-        && incoming().updatedAt == request.time
+        && isServerTimestamp(incoming().updatedAt)
         && isAdmin()
         && incoming().diff(existing()).affectedKeys().hasOnly([
           'facebook', 'instagram', 'tiktok', 'youtube',
@@ -403,8 +415,8 @@ service cloud.firestore {
         && isValidId(settingId)
         && isValidSeoSettings(incoming())
         && incoming().updatedBy == request.auth.uid
-        && incoming().createdAt == request.time
-        && incoming().updatedAt == request.time
+        && isServerTimestamp(incoming().createdAt)
+        && isServerTimestamp(incoming().updatedAt)
         && isAdmin();
 
       allow update: if isSignedIn()
@@ -412,7 +424,7 @@ service cloud.firestore {
         && isValidSeoSettings(incoming())
         && incoming().updatedBy == request.auth.uid
         && incoming().createdAt == existing().createdAt
-        && incoming().updatedAt == request.time
+        && isServerTimestamp(incoming().updatedAt)
         && isAdmin()
         && incoming().diff(existing()).affectedKeys().hasOnly([
           'siteTitle', 'metaDescription', 'keywords', 'canonicalUrl',
