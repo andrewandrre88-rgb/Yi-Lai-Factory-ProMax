@@ -601,7 +601,7 @@ export function DashboardPage({
               ? seoSettings.keywords.slice(0, 8)
               : [];
 
-      const finalSlug = postForm.slug.trim()
+      const finalSlug = editingPostId && postForm.slug.trim()
         ? sanitizeSlug(postForm.slug, 'post')
         : sanitizeSlug(postForm.title, 'post');
 
@@ -1817,32 +1817,17 @@ export function DashboardPage({
             </div>
 
             <form onSubmit={handleSavePost} className="mt-6 space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-[#0B1B3E] mb-1.5">
-                    {s.fieldPostTitle}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={postForm.title}
-                    onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm text-[#0B1B3E]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#0B1B3E] mb-1.5">
-                    {s.fieldSlug}
-                  </label>
-                  <input
-                    type="text"
-                    value={postForm.slug}
-                    onChange={(e) => setPostForm({ ...postForm, slug: e.target.value })}
-                    placeholder="custom-article-slug"
-                    disabled={Boolean(editingPostId)}
-                    className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm font-mono text-[#0B1B3E] disabled:opacity-60"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#0B1B3E] mb-1.5">
+                  {s.fieldPostTitle}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={postForm.title}
+                  onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm text-[#0B1B3E]"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
