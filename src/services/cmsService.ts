@@ -15,7 +15,13 @@ import {
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { PRODUCT_CATEGORIES, ProductVariant } from '../data/factoryData';
-import { BlogCategory, BlogPost, STARTER_BLOG_POSTS } from '../data/blogData';
+import {
+  BlogCategory,
+  BlogImagePlacement,
+  BlogPost,
+  BlogPostImage,
+  STARTER_BLOG_POSTS,
+} from '../data/blogData';
 import {
   EMPTY_SOCIAL_LINKS,
   MAX_ACCOUNTS_PER_PLATFORM,
@@ -76,6 +82,7 @@ export interface BlogPostInput {
   content: string;
   category: BlogCategory;
   coverImage: string;
+  images?: BlogPostImage[];
   authorName: string;
   readTime: string;
   tags: string[];
@@ -366,6 +373,25 @@ function normalizeProductPayload(input: ProductInput, uid: string) {
   };
 }
 
+function normalizeBlogImages(raw: unknown): BlogPostImage[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (item): item is Record<string, unknown> =>
+        Boolean(item && typeof item === 'object' && typeof (item as Record<string, unknown>).url === 'string')
+    )
+    .map((item) => {
+      const pos = item.position as BlogImagePlacement;
+      return {
+        url: String(item.url || '').trim().slice(0, 100000),
+        position: pos === 'top' || pos === 'middle' || pos === 'bottom' ? pos : ('middle' as const),
+        caption: typeof item.caption === 'string' ? item.caption.trim().slice(0, 160) : '',
+      };
+    })
+    .filter((img) => img.url.length > 0 && img.url.length <= 100000)
+    .slice(0, 12);
+}
+
 function normalizeBlogPayload(input: BlogPostInput, uid: string) {
   const category = VALID_BLOG_CATEGORIES.has(input.category)
     ? input.category
@@ -375,18 +401,20 @@ function normalizeBlogPayload(input: BlogPostInput, uid: string) {
     .map((t) => t.trim().slice(0, 40))
     .filter(Boolean)
     .slice(0, 8);
+  const images = normalizeBlogImages(input.images);
 
   return {
     slug,
     title: clampStr(input.title, 180),
-    excerpt: clampStr(input.excerpt, 2000),
-    content: clampStr(input.content, 50000),
+    excerpt: clampStr(input.excerpt, 900000),
+    content: clampStr(input.content, 950000),
     category,
     coverImage: clampStr(
       input.coverImage,
       100000,
       '/src/assets/images/factory_injection_moulding_1795005762839.jpg'
     ),
+    images,
     authorName: clampStr(input.authorName, 80, 'Yi Lai Engineering Desk'),
     readTime: clampStr(input.readTime, 40, '4 min read'),
     tags,
@@ -436,6 +464,7 @@ function toBlogRecord(id: string, data: Record<string, unknown>): BlogPost {
   const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : 0;
   const updatedAt = data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : 0;
   const rawCategory = String(data.category || 'Engineering') as BlogCategory;
+  const images = normalizeBlogImages(data.images);
 
   return {
     id,
@@ -447,6 +476,7 @@ function toBlogRecord(id: string, data: Record<string, unknown>): BlogPost {
     coverImage: String(
       data.coverImage || '/src/assets/images/factory_injection_moulding_1795005762839.jpg'
     ),
+    ...(images.length > 0 ? { images } : {}),
     authorName: String(data.authorName || 'Yi Lai Engineering Team'),
     readTime: String(data.readTime || '4 min read'),
     tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
@@ -1088,6 +1118,13 @@ export async function saveBlogPost(
     const ref = doc(db, 'blogPosts', docId);
     const existingSnap = existingId ? await getDoc(ref) : null;
 
+    const estimatedBytes = new Blob([JSON.stringify(normalized)]).size;
+    if (estimatedBytes > 980000) {
+      throw new Error(
+        'Combined article text and embedded image sizes exceed Firestore’s 1 MB per-document limit. Reduce embedded image count or shorten text slightly.'
+      );
+    }
+
     if (existingSnap?.exists()) {
       await updateDoc(ref, {
         slug: normalized.slug,
@@ -1096,6 +1133,7 @@ export async function saveBlogPost(
         content: normalized.content,
         category: normalized.category,
         coverImage: normalized.coverImage,
+        images: normalized.images,
         authorName: normalized.authorName,
         readTime: normalized.readTime,
         tags: normalized.tags,
@@ -1129,8 +1167,8 @@ export async function saveBlogPost(
         if (!/^[a-zA-Z0-9_-]{1,100}$/.test(normalized.slug)) checks.push(`badSlug:${normalized.slug}`);
         const strLimits: Array<[string, string, number]> = [
           ['title', normalized.title, 180],
-          ['excerpt', normalized.excerpt, 2000],
-          ['content', normalized.content, 50000],
+          ['excerpt', normalized.excerpt, 900000],
+          ['content', normalized.content, 950000],
           ['coverImage', normalized.coverImage, 100000],
           ['authorName', normalized.authorName, 80],
           ['readTime', normalized.readTime, 40],
@@ -1148,10 +1186,13 @@ export async function saveBlogPost(
         if (normalized.tags.length > 8 || (normalized.tags.length > 0 && normalized.tags[0].length > 40)) {
           checks.push(`badTags:${normalized.tags.length}`);
         }
+        if (normalized.images.length > 12 || normalized.images.some((img) => img.url.length > 100000 || (img.caption ?? '').length > 160)) {
+          checks.push(`badImages:${normalized.images.length}`);
+        }
         const diagSummary =
           checks.length > 0
             ? checks.join(',')
-            : `clientChecksOK;keys=${Object.keys(createPayload).length};hasSocial=${hasAnySocialLink(normalizedSocial)};coverLen=${normalized.coverImage.length};uidLen=${uid.length};slug=${normalized.slug}`;
+            : `clientChecksOK;keys=${Object.keys(createPayload).length};hasSocial=${hasAnySocialLink(normalizedSocial)};coverLen=${normalized.coverImage.length};imagesCount=${normalized.images.length};uidLen=${uid.length};slug=${normalized.slug}`;
         const baseMsg = writeErr instanceof Error ? writeErr.message : String(writeErr);
         throw new Error(`${baseMsg} [diag: ${diagSummary}]`);
       }

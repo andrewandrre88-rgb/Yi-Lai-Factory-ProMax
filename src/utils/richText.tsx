@@ -445,12 +445,15 @@ function renderStyledTable(headers: string[] | null, rows: string[][], key: numb
 export function FormattedRichContent({
   text,
   variant = 'article',
+  middleSlot,
 }: {
   text: string;
   variant?: 'article' | 'excerpt';
+  middleSlot?: ReactNode;
 }) {
   const lines = normalizeNewlines(text).split('\n');
   const elements: ReactNode[] = [];
+  const headingIndices = new Set<number>();
   let i = 0;
   let blockKey = 0;
 
@@ -538,6 +541,7 @@ export function FormattedRichContent({
           : level === 2
           ? 'font-display font-extrabold text-xl sm:text-2xl text-[#0B1B3E] pt-2'
           : 'font-display font-bold text-lg text-[#0B1B3E] pt-1';
+      headingIndices.add(elements.length);
       elements.push(
         <h2 key={blockKey++} className={headingClass}>
           {renderInlineFormatted(content)}
@@ -634,7 +638,26 @@ export function FormattedRichContent({
     );
   }
 
-  return <div className={variant === 'excerpt' ? 'space-y-3' : 'space-y-5'}>{elements}</div>;
+  let finalNodes = elements;
+  if (middleSlot) {
+    if (elements.length === 0) {
+      finalNodes = [<Fragment key="middle-slot">{middleSlot}</Fragment>];
+    } else if (elements.length === 1) {
+      finalNodes = [elements[0], <Fragment key="middle-slot">{middleSlot}</Fragment>];
+    } else {
+      let splitIdx = Math.ceil(elements.length / 2);
+      if (headingIndices.has(splitIdx - 1) && splitIdx < elements.length) {
+        splitIdx += 1;
+      }
+      finalNodes = [
+        ...elements.slice(0, splitIdx),
+        <Fragment key="middle-slot">{middleSlot}</Fragment>,
+        ...elements.slice(splitIdx),
+      ];
+    }
+  }
+
+  return <div className={variant === 'excerpt' ? 'space-y-3' : 'space-y-5'}>{finalNodes}</div>;
 }
 
 export function toPlainSummary(text: string): string {

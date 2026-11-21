@@ -97,28 +97,32 @@ function renderToBlob(
   });
 }
 
-function compressImageToSafeDataUrl(img: HTMLImageElement): string {
+function compressImageToSafeDataUrl(
+  img: HTMLImageElement,
+  maxChars = MAX_FIRESTORE_DATA_URL_CHARS
+): string {
   const attempts: Array<{ maxDim: number; quality: number }> = [
     { maxDim: 960, quality: 0.78 },
     { maxDim: 820, quality: 0.7 },
     { maxDim: 680, quality: 0.62 },
     { maxDim: 540, quality: 0.54 },
     { maxDim: 420, quality: 0.46 },
+    { maxDim: 340, quality: 0.4 },
   ];
 
   // Try WebP first if supported by browser canvas, then fallback to JPEG
   for (const attempt of attempts) {
     const webp = renderToDataUrl(img, attempt.maxDim, 'image/webp', attempt.quality);
-    if (webp.startsWith('data:image/webp') && webp.length <= MAX_FIRESTORE_DATA_URL_CHARS) {
+    if (webp.startsWith('data:image/webp') && webp.length <= maxChars) {
       return webp;
     }
     const jpeg = renderToDataUrl(img, attempt.maxDim, 'image/jpeg', attempt.quality);
-    if (jpeg.length <= MAX_FIRESTORE_DATA_URL_CHARS) {
+    if (jpeg.length <= maxChars) {
       return jpeg;
     }
   }
 
-  return renderToDataUrl(img, 360, 'image/jpeg', 0.4);
+  return renderToDataUrl(img, 300, 'image/jpeg', 0.36);
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -142,7 +146,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 export async function uploadDashboardImage(
   file: File,
   folder: UploadFolder,
-  uid: string
+  uid: string,
+  maxDataUrlChars = MAX_FIRESTORE_DATA_URL_CHARS
 ): Promise<UploadedImageResult> {
   if (!file.type.startsWith('image/')) {
     throw new ImageUploadValidationError(
@@ -190,7 +195,7 @@ export async function uploadDashboardImage(
   } catch {
     // Graceful fallback if Firebase Storage bucket rules/billing aren't enabled yet:
     // compress cleanly into a lightweight WebP/JPEG data URL under Firestore doc bounds.
-    const compactDataUrl = compressImageToSafeDataUrl(img);
+    const compactDataUrl = compressImageToSafeDataUrl(img, maxDataUrlChars);
     return {
       url: compactDataUrl,
       suggestedLabel,

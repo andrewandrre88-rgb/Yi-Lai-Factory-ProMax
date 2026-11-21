@@ -160,6 +160,36 @@ service cloud.firestore {
       ];
     }
 
+    function isValidBlogImageItem(item) {
+      return item is map
+        && item.keys().hasAll(['url', 'position', 'caption'])
+        && item.keys().hasOnly(['url', 'position', 'caption'])
+        && item.url is string
+        && item.url.size() >= 1
+        && item.url.size() <= 100000
+        && item.position is string
+        && item.position in ['top', 'middle', 'bottom']
+        && item.caption is string
+        && item.caption.size() <= 160;
+    }
+
+    function isValidBlogImageList(listVal) {
+      return listVal is list
+        && listVal.size() <= 12
+        && (listVal.size() < 1 || isValidBlogImageItem(listVal[0]))
+        && (listVal.size() < 2 || isValidBlogImageItem(listVal[1]))
+        && (listVal.size() < 3 || isValidBlogImageItem(listVal[2]))
+        && (listVal.size() < 4 || isValidBlogImageItem(listVal[3]))
+        && (listVal.size() < 5 || isValidBlogImageItem(listVal[4]))
+        && (listVal.size() < 6 || isValidBlogImageItem(listVal[5]))
+        && (listVal.size() < 7 || isValidBlogImageItem(listVal[6]))
+        && (listVal.size() < 8 || isValidBlogImageItem(listVal[7]))
+        && (listVal.size() < 9 || isValidBlogImageItem(listVal[8]))
+        && (listVal.size() < 10 || isValidBlogImageItem(listVal[9]))
+        && (listVal.size() < 11 || isValidBlogImageItem(listVal[10]))
+        && (listVal.size() < 12 || isValidBlogImageItem(listVal[11]));
+    }
+
     function isValidBlogPost(data) {
       return data.keys().hasAll([
           'slug', 'title', 'excerpt', 'content', 'category', 'coverImage',
@@ -168,15 +198,16 @@ service cloud.firestore {
         ])
         && data.keys().hasOnly([
           'slug', 'title', 'excerpt', 'content', 'category', 'coverImage',
-          'authorName', 'readTime', 'tags', 'status', 'publishedAt', 'socialLinks',
+          'images', 'authorName', 'readTime', 'tags', 'status', 'publishedAt', 'socialLinks',
           'authorUid', 'createdAt', 'updatedAt'
         ])
         && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 100 && data.slug.matches('^[a-zA-Z0-9_\\-]+$')
         && data.title is string && data.title.size() >= 1 && data.title.size() <= 180
-        && data.excerpt is string && data.excerpt.size() >= 1 && data.excerpt.size() <= 2000
-        && data.content is string && data.content.size() >= 1 && data.content.size() <= 50000
+        && data.excerpt is string && data.excerpt.size() >= 1 && data.excerpt.size() <= 900000
+        && data.content is string && data.content.size() >= 1 && data.content.size() <= 950000
         && data.category is string && isValidBlogCategory(data.category)
         && data.coverImage is string && data.coverImage.size() >= 1 && data.coverImage.size() <= 100000
+        && (!('images' in data) || isValidBlogImageList(data.images))
         && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80
         && data.readTime is string && data.readTime.size() >= 1 && data.readTime.size() <= 40
         && data.tags is list && data.tags.size() <= 8 && (data.tags.size() == 0 || (data.tags[0] is string && data.tags[0].size() <= 40))
@@ -330,7 +361,7 @@ service cloud.firestore {
         && isServerTimestamp(incoming().updatedAt)
         && isAdmin()
         && incoming().diff(existing()).affectedKeys().hasOnly([
-          'slug', 'title', 'excerpt', 'content', 'category', 'coverImage',
+          'slug', 'title', 'excerpt', 'content', 'category', 'coverImage', 'images',
           'authorName', 'readTime', 'tags', 'status', 'publishedAt', 'socialLinks', 'updatedAt'
         ]);
 

@@ -29,7 +29,9 @@ import { getLocalizedCategories } from '../data/translations';
 import {
   BLOG_CATEGORIES,
   BlogCategory,
+  BlogImagePlacement,
   BlogPost,
+  BlogPostImage,
   STUDIO_IMAGE_PRESETS,
 } from '../data/blogData';
 import { getCmsStrings } from '../data/cmsTranslations';
@@ -64,6 +66,7 @@ import {
   SocialPlatformKey,
 } from './SocialLinksBar';
 import { applyTextareaPaste, FormattedRichContent } from '../utils/richText';
+import { BlogArticleImages } from './BlogPage';
 
 interface DashboardPageProps {
   lang: LanguageCode;
@@ -109,6 +112,7 @@ const EMPTY_BLOG_FORM: BlogPostInput = {
   content: '',
   category: 'Engineering',
   coverImage: '/src/assets/images/factory_injection_moulding_1795005762839.jpg',
+  images: [],
   authorName: 'Yi Lai Engineering Team',
   readTime: '4 min read',
   tags: ['Trigger Sprayers', 'Yuyao Factory'],
@@ -180,8 +184,11 @@ export function DashboardPage({
   const [tagsText, setTagsText] = useState('');
   const [savingPost, setSavingPost] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingPostImages, setUploadingPostImages] = useState(false);
   const [postUploadError, setPostUploadError] = useState<string | null>(null);
   const [isDraggingCover, setIsDraggingCover] = useState(false);
+  const [isDraggingPostImages, setIsDraggingPostImages] = useState(false);
+  const [uploadPlacementMode, setUploadPlacementMode] = useState<'auto' | BlogImagePlacement>('auto');
 
   useEffect(() => {
     setSocialForm(padSocialForm(socialLinks));
@@ -513,6 +520,7 @@ export function DashboardPage({
     setEditingPostId(null);
     setPostUploadError(null);
     setFeedback(null);
+    setUploadPlacementMode('auto');
     const autoSeoActive = seoSettings.autoApplyToNewContent !== false;
     const inheritedTags =
       autoSeoActive && seoSettings.keywords.length > 0
@@ -520,6 +528,7 @@ export function DashboardPage({
         : 'Trigger Sprayers, QC Testing, OEM';
     setPostForm({
       ...EMPTY_BLOG_FORM,
+      images: [],
       publishedAt: new Date().toISOString().slice(0, 10),
       socialLinks: undefined,
     });
@@ -531,6 +540,7 @@ export function DashboardPage({
     setEditingPostId(post.id);
     setPostUploadError(null);
     setFeedback(null);
+    setUploadPlacementMode('auto');
     setPostForm({
       slug: post.slug,
       title: post.title,
@@ -538,6 +548,7 @@ export function DashboardPage({
       content: post.content,
       category: post.category,
       coverImage: post.coverImage,
+      images: post.images ? post.images.map((img) => ({ ...img })) : [],
       authorName: post.authorName,
       readTime: post.readTime,
       tags: post.tags,
@@ -554,7 +565,7 @@ export function DashboardPage({
     setPostUploadError(null);
     setUploadingCover(true);
     try {
-      const res = await uploadDashboardImage(file, 'blog', user.uid);
+      const res = await uploadDashboardImage(file, 'blog', user.uid, 65000);
       setPostForm((prev) => ({ ...prev, coverImage: res.url }));
     } catch (err) {
       setPostUploadError(getUploadErrorMessage(err));
@@ -566,10 +577,120 @@ export function DashboardPage({
   const handleCoverDrop = (e: DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     setIsDraggingCover(false);
+    if (e.dataTransfer.files?.length > 1) {
+      void handleBlogBatchImageUpload(e.dataTransfer.files);
+      return;
+    }
     const file = e.dataTransfer.files?.[0];
     if (file) {
       void handleBlogCoverUpload(file);
     }
+  };
+
+  const handleBlogBatchImageUpload = async (
+    files: FileList | File[],
+    placementOverride?: 'auto' | BlogImagePlacement
+  ) => {
+    if (!user) return;
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
+    const existingImages = postForm.images ?? [];
+    const remainingSlots = Math.max(0, 12 - existingImages.length);
+    if (remainingSlots === 0) return;
+
+    const filesToProcess = fileArray.slice(0, remainingSlots);
+    const activePlacement = placementOverride ?? uploadPlacementMode;
+    const placementCycle: BlogImagePlacement[] = ['top', 'middle', 'bottom'];
+
+    setPostUploadError(null);
+    setUploadingPostImages(true);
+    try {
+      const added: BlogPostImage[] = [];
+      for (let idx = 0; idx < filesToProcess.length; idx++) {
+        const file = filesToProcess[idx];
+        const res = await uploadDashboardImage(file, 'blog', user.uid, 55000);
+        const position: BlogImagePlacement =
+          activePlacement === 'auto'
+            ? placementCycle[(existingImages.length + idx) % placementCycle.length]
+            : activePlacement;
+        added.push({
+          url: res.url,
+          position,
+          caption: '',
+        });
+      }
+      if (added.length > 0) {
+        setPostForm((prev) => {
+          const nextImages = [...(prev.images ?? []), ...added].slice(0, 12);
+          const firstTopOrAdded = added.find((img) => img.position === 'top') ?? added[0];
+          const shouldSyncCover =
+            prev.coverImage === EMPTY_BLOG_FORM.coverImage && Boolean(firstTopOrAdded?.url);
+          return {
+            ...prev,
+            coverImage: shouldSyncCover ? firstTopOrAdded.url : prev.coverImage,
+            images: nextImages,
+          };
+        });
+      }
+    } catch (err) {
+      setPostUploadError(getUploadErrorMessage(err));
+    } finally {
+      setUploadingPostImages(false);
+    }
+  };
+
+  const handlePostImagesDrop = (e: DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setIsDraggingPostImages(false);
+    if (e.dataTransfer.files?.length) {
+      void handleBlogBatchImageUpload(e.dataTransfer.files);
+    }
+  };
+
+  const updatePostImage = (idx: number, patch: Partial<BlogPostImage>) => {
+    setPostForm((prev) => {
+      const next = [...(prev.images ?? [])];
+      if (!next[idx]) return prev;
+      next[idx] = { ...next[idx], ...patch };
+      return { ...prev, images: next };
+    });
+  };
+
+  const movePostImage = (idx: number, direction: -1 | 1) => {
+    setPostForm((prev) => {
+      const next = [...(prev.images ?? [])];
+      const target = idx + direction;
+      if (target < 0 || target >= next.length) return prev;
+      const temp = next[idx];
+      next[idx] = next[target];
+      next[target] = temp;
+      return { ...prev, images: next };
+    });
+  };
+
+  const removePostImage = (idx: number) => {
+    setPostForm((prev) => ({
+      ...prev,
+      images: (prev.images ?? []).filter((_, i) => i !== idx),
+    }));
+  };
+
+  const addPresetPostImage = (url: string) => {
+    if (!url) return;
+    setPostForm((prev) => {
+      const existingImages = prev.images ?? [];
+      if (existingImages.length >= 12) return prev;
+      const cycle: BlogImagePlacement[] = ['top', 'middle', 'bottom'];
+      const position: BlogImagePlacement =
+        uploadPlacementMode === 'auto'
+          ? cycle[existingImages.length % cycle.length]
+          : uploadPlacementMode;
+      return {
+        ...prev,
+        images: [...existingImages, { url, position, caption: '' }],
+      };
+    });
   };
 
   const handleSavePost = async (e: FormEvent) => {
@@ -1919,75 +2040,273 @@ export function DashboardPage({
 
               <div className="space-y-3">
                 <label className="block text-xs font-semibold text-[#0B1B3E]">
-                  {s.fieldPostCoverImage}
+                  {s.fieldPostCoverImage} &amp; {s.fieldPostImagesHeading}
                 </label>
 
-                <div className="flex flex-col sm:flex-row gap-4 items-stretch bg-[#F8FAFE] p-3.5 rounded-2xl border border-slate-200/80">
-                  <img
-                    src={postForm.coverImage}
-                    alt={postForm.title || s.fieldImagePreviewAlt}
-                    referrerPolicy="no-referrer"
-                    className="w-full sm:w-44 aspect-[16/10] rounded-xl object-cover border border-slate-200 bg-white shrink-0"
-                  />
+                <div className="bg-[#F8FAFE] p-4 rounded-2xl border border-slate-200/80 space-y-4">
+                  {/* Cover Image Row */}
+                  <div className="flex flex-col sm:flex-row gap-4 items-stretch">
+                    <img
+                      src={postForm.coverImage}
+                      alt={postForm.title || s.fieldImagePreviewAlt}
+                      referrerPolicy="no-referrer"
+                      className="w-full sm:w-44 aspect-[16/10] rounded-xl object-cover border border-slate-200 bg-white shrink-0"
+                    />
 
-                  <div className="flex-1 space-y-2.5">
-                    <label
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        setIsDraggingCover(true);
-                      }}
-                      onDragLeave={() => setIsDraggingCover(false)}
-                      onDrop={handleCoverDrop}
-                      className={`flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl border-2 border-dashed transition-colors cursor-pointer ${
-                        isDraggingCover
-                          ? 'border-[#155EEF] bg-blue-50/70'
-                          : 'border-slate-300 bg-white hover:border-[#155EEF]/60'
-                      }`}
-                    >
-                      <input
-                        type="file"
-                        accept="image/*"
-                        disabled={uploadingCover}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            void handleBlogCoverUpload(file);
-                          }
-                          e.target.value = '';
+                    <div className="flex-1 space-y-2.5">
+                      <label
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setIsDraggingCover(true);
                         }}
-                        className="hidden"
-                      />
-                      {uploadingCover ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-[#155EEF]" />
-                      ) : (
-                        <Upload className="w-4 h-4 text-[#155EEF]" />
-                      )}
-                      <span className="text-xs font-semibold text-[#0B1B3E]">
-                        {uploadingCover ? s.fieldUploading : s.fieldUploadImage}
-                      </span>
-                      <span className="hidden md:inline text-[11px] text-slate-400">
-                        · {s.fieldDropHint}
-                      </span>
-                    </label>
+                        onDragLeave={() => setIsDraggingCover(false)}
+                        onDrop={handleCoverDrop}
+                        className={`flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl border-2 border-dashed transition-colors cursor-pointer ${
+                          isDraggingCover
+                            ? 'border-[#155EEF] bg-blue-50/70'
+                            : 'border-slate-300 bg-white hover:border-[#155EEF]/60'
+                        }`}
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={uploadingCover || uploadingPostImages}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              void handleBlogCoverUpload(file);
+                            }
+                            e.target.value = '';
+                          }}
+                          className="hidden"
+                        />
+                        {uploadingCover ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-[#155EEF]" />
+                        ) : (
+                          <Upload className="w-4 h-4 text-[#155EEF]" />
+                        )}
+                        <span className="text-xs font-semibold text-[#0B1B3E]">
+                          {uploadingCover ? s.fieldUploading : s.fieldUploadImage}
+                        </span>
+                        <span className="hidden md:inline text-[11px] text-slate-400">
+                          · {s.fieldDropHint}
+                        </span>
+                      </label>
 
-                    <select
-                      value={
-                        STUDIO_IMAGE_PRESETS.some((p) => p.src === postForm.coverImage)
-                          ? postForm.coverImage
-                          : ''
-                      }
-                      onChange={(e) => {
-                        if (e.target.value) setPostForm({ ...postForm, coverImage: e.target.value });
-                      }}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-[#0B1B3E]"
-                    >
-                      <option value="">{s.fieldPresetSelect}</option>
-                      {STUDIO_IMAGE_PRESETS.map((preset) => (
-                        <option key={preset.src} value={preset.src}>
-                          {preset.label}
-                        </option>
+                      <select
+                        value={
+                          STUDIO_IMAGE_PRESETS.some((p) => p.src === postForm.coverImage)
+                            ? postForm.coverImage
+                            : ''
+                        }
+                        onChange={(e) => {
+                          if (e.target.value) setPostForm({ ...postForm, coverImage: e.target.value });
+                        }}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-[#0B1B3E]"
+                      >
+                        <option value="">{s.fieldPresetSelect}</option>
+                        {STUDIO_IMAGE_PRESETS.map((preset) => (
+                          <option key={preset.src} value={preset.src}>
+                            {preset.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Multi-Image Upload & Top / Middle / Bottom Section Placement */}
+                  <div className="pt-3.5 border-t border-slate-200/80 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-xs font-semibold text-[#0B1B3E]">
+                        {s.fieldPostImagesHeading} ({(postForm.images ?? []).length}/12)
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] font-mono text-slate-500">
+                        <span>
+                          {s.fieldPlacementTop}: {(postForm.images ?? []).filter((i) => i.position === 'top').length}
+                        </span>
+                        <span>·</span>
+                        <span>
+                          {s.fieldPlacementMiddle}: {(postForm.images ?? []).filter((i) => i.position === 'middle').length}
+                        </span>
+                        <span>·</span>
+                        <span>
+                          {s.fieldPlacementBottom}: {(postForm.images ?? []).filter((i) => i.position === 'bottom').length}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Placement Mode Picker for Next Multi-Upload */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {(
+                        [
+                          { id: 'auto', label: s.fieldPlacementAuto },
+                          { id: 'top', label: s.fieldPlacementTop },
+                          { id: 'middle', label: s.fieldPlacementMiddle },
+                          { id: 'bottom', label: s.fieldPlacementBottom },
+                        ] as const
+                      ).map((mode) => (
+                        <button
+                          key={mode.id}
+                          type="button"
+                          onClick={() => setUploadPlacementMode(mode.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                            uploadPlacementMode === mode.id
+                              ? 'bg-[#0B1B3E] text-white border-[#0B1B3E]'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-[#155EEF]'
+                          }`}
+                        >
+                          {mode.label}
+                        </button>
                       ))}
-                    </select>
+                    </div>
+
+                    {(postForm.images ?? []).length < 12 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-stretch">
+                        <label
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setIsDraggingPostImages(true);
+                          }}
+                          onDragLeave={() => setIsDraggingPostImages(false)}
+                          onDrop={handlePostImagesDrop}
+                          className={`sm:col-span-8 flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl border-2 border-dashed transition-colors cursor-pointer ${
+                            isDraggingPostImages
+                              ? 'border-[#155EEF] bg-blue-50/70'
+                              : 'border-slate-300 bg-white hover:border-[#155EEF]/60'
+                          }`}
+                        >
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            disabled={uploadingCover || uploadingPostImages}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                              if (e.target.files?.length) {
+                                void handleBlogBatchImageUpload(e.target.files);
+                              }
+                              e.target.value = '';
+                            }}
+                            className="hidden"
+                          />
+                          {uploadingPostImages ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-[#155EEF] shrink-0" />
+                          ) : (
+                            <ImagePlus className="w-4 h-4 text-[#155EEF] shrink-0" />
+                          )}
+                          <span className="text-xs font-semibold text-[#0B1B3E]">
+                            {uploadingPostImages ? s.fieldUploading : s.fieldUploadPostImages}
+                          </span>
+                        </label>
+
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              addPresetPostImage(e.target.value);
+                            }
+                          }}
+                          className="sm:col-span-4 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-[#0B1B3E]"
+                        >
+                          <option value="">+ {s.fieldPresetSelect}</option>
+                          {STUDIO_IMAGE_PRESETS.map((preset) => (
+                            <option key={preset.src} value={preset.src}>
+                              {preset.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {(postForm.images ?? []).length > 0 && (
+                      <div className="space-y-2.5 pt-1">
+                        {(postForm.images ?? []).map((img, idx) => (
+                          <div
+                            key={`${idx}-${img.url.slice(0, 24)}`}
+                            className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center bg-white p-3 rounded-xl border border-slate-200/90"
+                          >
+                            <img
+                              src={img.url}
+                              alt={img.caption || s.fieldImagePreviewAlt}
+                              referrerPolicy="no-referrer"
+                              className="w-full sm:w-20 h-24 sm:h-14 rounded-lg object-cover border border-slate-200 bg-slate-50 shrink-0"
+                            />
+
+                            <div className="flex-1 space-y-2">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {(
+                                  [
+                                    { id: 'top', label: s.fieldPlacementTop },
+                                    { id: 'middle', label: s.fieldPlacementMiddle },
+                                    { id: 'bottom', label: s.fieldPlacementBottom },
+                                  ] as const
+                                ).map((slot) => (
+                                  <button
+                                    key={slot.id}
+                                    type="button"
+                                    onClick={() => updatePostImage(idx, { position: slot.id })}
+                                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border transition-colors cursor-pointer ${
+                                      img.position === slot.id
+                                        ? 'bg-[#155EEF] text-white border-[#155EEF]'
+                                        : 'bg-[#F8FAFE] text-slate-600 border-slate-200 hover:border-[#155EEF]'
+                                    }`}
+                                  >
+                                    {slot.label}
+                                  </button>
+                                ))}
+
+                                {postForm.coverImage !== img.url && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setPostForm((prev) => ({ ...prev, coverImage: img.url }))
+                                    }
+                                    className="ms-auto px-2.5 py-1 rounded-md text-[11px] font-semibold text-[#155EEF] bg-blue-50/70 hover:bg-blue-100/80 transition-colors cursor-pointer"
+                                  >
+                                    {s.fieldSetAsCover}
+                                  </button>
+                                )}
+                              </div>
+
+                              <input
+                                type="text"
+                                value={img.caption ?? ''}
+                                onChange={(e) => updatePostImage(idx, { caption: e.target.value })}
+                                placeholder={s.fieldImageCaptionPlaceholder}
+                                className="w-full rounded-lg border border-slate-200 bg-[#F8FAFE] px-2.5 py-1.5 text-xs text-[#0B1B3E]"
+                              />
+                            </div>
+
+                            <div className="flex sm:flex-col items-center justify-end gap-1 shrink-0">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => movePostImage(idx, -1)}
+                                title="Move Up"
+                                className="px-2 py-1 rounded border border-slate-200 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-30 cursor-pointer"
+                              >
+                                ↑
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === (postForm.images ?? []).length - 1}
+                                onClick={() => movePostImage(idx, 1)}
+                                title="Move Down"
+                                className="px-2 py-1 rounded border border-slate-200 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-30 cursor-pointer"
+                              >
+                                ↓
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removePostImage(idx)}
+                                className="p-1.5 text-slate-400 hover:text-[#E1262D] cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -2000,11 +2319,16 @@ export function DashboardPage({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#0B1B3E] mb-1.5">
-                  {s.fieldPostExcerpt}
-                </label>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <label className="block text-xs font-semibold text-[#0B1B3E]">
+                    {s.fieldPostExcerpt}
+                  </label>
+                  <span className="text-[11px] font-mono text-slate-400 tabular-nums">
+                    {postForm.excerpt.length.toLocaleString()} chars
+                  </span>
+                </div>
                 <textarea
-                  rows={3}
+                  rows={4}
                   required
                   value={postForm.excerpt}
                   onChange={(e) => setPostForm({ ...postForm, excerpt: e.target.value })}
@@ -2013,7 +2337,7 @@ export function DashboardPage({
                       setPostForm((prev) => ({ ...prev, excerpt: nextVal }))
                     )
                   }
-                  className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm text-[#0B1B3E] leading-relaxed whitespace-pre-wrap [tab-size:4] overflow-x-auto"
+                  className="w-full min-h-[104px] resize-y rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm text-[#0B1B3E] leading-relaxed whitespace-pre-wrap [tab-size:4] overflow-x-auto"
                 />
               </div>
 
@@ -2022,16 +2346,21 @@ export function DashboardPage({
                   <label className="block text-xs font-semibold text-[#0B1B3E]">
                     {s.fieldPostContent}
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowPostPreview((prev) => !prev)}
-                    className="text-xs font-semibold text-[#155EEF] hover:text-[#0B1B3E] transition-colors cursor-pointer"
-                  >
-                    {showPostPreview ? 'Hide Preview' : 'Preview Tables & Formatting'}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] font-mono text-slate-400 tabular-nums">
+                      {postForm.content.length.toLocaleString()} chars
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPostPreview((prev) => !prev)}
+                      className="text-xs font-semibold text-[#155EEF] hover:text-[#0B1B3E] transition-colors cursor-pointer"
+                    >
+                      {showPostPreview ? 'Hide Preview' : 'Preview Tables & Formatting'}
+                    </button>
+                  </div>
                 </div>
                 <textarea
-                  rows={10}
+                  rows={14}
                   required
                   value={postForm.content}
                   onChange={(e) => setPostForm({ ...postForm, content: e.target.value })}
@@ -2040,21 +2369,46 @@ export function DashboardPage({
                       setPostForm((prev) => ({ ...prev, content: nextVal }))
                     )
                   }
-                  className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-xs sm:text-sm font-mono text-[#0B1B3E] leading-relaxed whitespace-pre-wrap [tab-size:4] overflow-x-auto"
+                  className="w-full min-h-[320px] resize-y rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-xs sm:text-sm font-mono text-[#0B1B3E] leading-relaxed whitespace-pre-wrap [tab-size:4] overflow-x-auto"
                 />
                 {showPostPreview && (
-                  <section className="mt-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 max-h-80 overflow-y-auto space-y-4">
+                  <section className="mt-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 max-h-[30rem] overflow-y-auto space-y-4">
                     {postForm.excerpt.trim() && (
                       <section className="pb-3 border-b border-slate-100">
                         <FormattedRichContent text={postForm.excerpt} variant="excerpt" />
                       </section>
                     )}
+                    {(postForm.images ?? []).some((img) => img.position === 'top') && (
+                      <BlogArticleImages
+                        images={(postForm.images ?? []).filter((img) => img.position === 'top')}
+                        fallbackAlt={postForm.title || s.fieldImagePreviewAlt}
+                      />
+                    )}
                     {postForm.content.trim() ? (
-                      <FormattedRichContent text={postForm.content} variant="article" />
+                      <FormattedRichContent
+                        text={postForm.content}
+                        variant="article"
+                        middleSlot={
+                          (postForm.images ?? []).some((img) => img.position === 'middle') ? (
+                            <div className="py-2">
+                              <BlogArticleImages
+                                images={(postForm.images ?? []).filter((img) => img.position === 'middle')}
+                                fallbackAlt={postForm.title || s.fieldImagePreviewAlt}
+                              />
+                            </div>
+                          ) : undefined
+                        }
+                      />
                     ) : (
                       <p className="text-xs text-slate-400">
                         Paste text or tables above to preview how they will render on the blog.
                       </p>
+                    )}
+                    {(postForm.images ?? []).some((img) => img.position === 'bottom') && (
+                      <BlogArticleImages
+                        images={(postForm.images ?? []).filter((img) => img.position === 'bottom')}
+                        fallbackAlt={postForm.title || s.fieldImagePreviewAlt}
+                      />
                     )}
                   </section>
                 )}
@@ -2077,7 +2431,7 @@ export function DashboardPage({
                 </button>
                 <button
                   type="submit"
-                  disabled={savingPost || uploadingCover}
+                  disabled={savingPost || uploadingCover || uploadingPostImages}
                   className="px-6 py-2.5 rounded-full bg-[#E1262D] hover:bg-[#C61D24] text-white text-sm font-semibold cursor-pointer disabled:opacity-60"
                 >
                   {savingPost ? s.dashSaving : s.dashSavePostBtn}

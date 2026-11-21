@@ -168,14 +168,14 @@
         "excerpt": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 2000,
-          "description": "Short summary card preview."
+          "maxLength": 900000,
+          "description": "Short or full formatted summary preview."
         },
         "content": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 50000,
-          "description": "Full multi-paragraph article body."
+          "maxLength": 950000,
+          "description": "Full multi-paragraph article body with preserved formatting and tables."
         },
         "category": {
           "type": "string",
@@ -195,6 +195,10 @@
           "minLength": 1,
           "maxLength": 100000,
           "description": "Cover photo path, Storage URL, or compressed image data URL."
+        },
+        "images": {
+          "type": "array",
+          "description": "Positioned multi-image gallery entries placed at top, middle, or bottom of the blog article (up to 12 items)."
         },
         "authorName": {
           "type": "string",

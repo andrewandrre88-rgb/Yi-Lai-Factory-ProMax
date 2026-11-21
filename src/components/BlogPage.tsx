@@ -12,7 +12,7 @@ import {
   User,
 } from 'lucide-react';
 import { LanguageCode } from '../data/factoryData';
-import { BLOG_CATEGORIES, BlogCategory, BlogPost } from '../data/blogData';
+import { BLOG_CATEGORIES, BlogCategory, BlogPost, BlogPostImage } from '../data/blogData';
 import { getCmsStrings } from '../data/cmsTranslations';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { SocialLinksBar, SocialMediaLinks } from './SocialLinksBar';
@@ -29,6 +29,48 @@ interface BlogPageProps {
   onBackHome: () => void;
   onOpenDashboard: () => void;
   onRequestSamples: (topicNote: string) => void;
+}
+
+export function BlogArticleImages({
+  images,
+  fallbackAlt,
+}: {
+  images: BlogPostImage[];
+  fallbackAlt: string;
+}) {
+  if (images.length === 0) return null;
+
+  return (
+    <div
+      className={
+        images.length === 1
+          ? 'my-2'
+          : 'my-2 grid grid-cols-1 sm:grid-cols-2 gap-4'
+      }
+    >
+      {images.map((img, idx) => (
+        <figure
+          key={`${img.position}-${idx}-${img.url.slice(0, 32)}`}
+          className="rounded-2xl overflow-hidden border border-slate-200 bg-[#F8FAFE] shadow-2xs"
+        >
+          <div className={images.length === 1 ? 'aspect-[16/9] w-full overflow-hidden' : 'aspect-[16/10] w-full overflow-hidden'}>
+            <img
+              src={img.url}
+              alt={img.caption || fallbackAlt}
+              referrerPolicy="no-referrer"
+              loading="lazy"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          {img.caption && (
+            <figcaption className="px-4 py-2.5 text-xs text-slate-600 border-t border-slate-200/80 bg-white">
+              {img.caption}
+            </figcaption>
+          )}
+        </figure>
+      ))}
+    </div>
+  );
 }
 
 export function BlogPage({
@@ -55,6 +97,18 @@ export function BlogPage({
     const relatedPosts = publishedPosts
       .filter((p) => p.id !== activePost.id)
       .slice(0, 3);
+    const positionedImages = activePost.images ?? [];
+    const topImages = positionedImages.filter((img) => img.position === 'top');
+    const middleImages = positionedImages.filter((img) => img.position === 'middle');
+    const bottomImages = positionedImages.filter((img) => img.position === 'bottom');
+    const coverAlreadyInTop = topImages.some((img) => img.url === activePost.coverImage);
+    const heroImage = coverAlreadyInTop
+      ? topImages[0]?.url || activePost.coverImage
+      : activePost.coverImage;
+    const heroCaption = coverAlreadyInTop
+      ? topImages[0]?.caption
+      : undefined;
+    const extraTopImages = coverAlreadyInTop ? topImages.slice(1) : topImages;
 
     return (
       <div className="bg-[#F6F9FE] min-h-screen pb-20">
@@ -117,17 +171,46 @@ export function BlogPage({
             </div>
           </div>
 
-          <div className="mt-8 rounded-3xl overflow-hidden border border-slate-200 bg-white shadow-sm aspect-[16/9]">
-            <img
-              src={activePost.coverImage}
-              alt={activePost.title}
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover"
-            />
-          </div>
+          <figure className="mt-8 rounded-3xl overflow-hidden border border-slate-200 bg-white shadow-sm">
+            <div className="aspect-[16/9] w-full overflow-hidden">
+              <img
+                src={heroImage}
+                alt={heroCaption || activePost.title}
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            {heroCaption && (
+              <figcaption className="px-5 py-3 text-xs sm:text-sm text-slate-600 border-t border-slate-100 bg-white">
+                {heroCaption}
+              </figcaption>
+            )}
+          </figure>
 
-          <div className="mt-8 bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-10 shadow-xs space-y-5">
-            <FormattedRichContent text={activePost.content} variant="article" />
+          {extraTopImages.length > 0 && (
+            <div className="mt-5">
+              <BlogArticleImages images={extraTopImages} fallbackAlt={activePost.title} />
+            </div>
+          )}
+
+          <div className="mt-8 bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-10 shadow-xs space-y-6">
+            <FormattedRichContent
+              text={activePost.content}
+              variant="article"
+              middleSlot={
+                middleImages.length > 0 ? (
+                  <div className="py-2">
+                    <BlogArticleImages images={middleImages} fallbackAlt={activePost.title} />
+                  </div>
+                ) : undefined
+              }
+            />
+
+            {bottomImages.length > 0 && (
+              <div className="pt-2">
+                <BlogArticleImages images={bottomImages} fallbackAlt={activePost.title} />
+              </div>
+            )}
 
             {activePost.tags.length > 0 && (
               <div className="pt-6 border-t border-slate-100 flex flex-wrap items-center gap-2">

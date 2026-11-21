@@ -15,6 +15,14 @@ export const BLOG_CATEGORIES: readonly BlogCategory[] = [
   'Export & Logistics',
 ] as const;
 
+export type BlogImagePlacement = 'top' | 'middle' | 'bottom';
+
+export interface BlogPostImage {
+  url: string;
+  position: BlogImagePlacement;
+  caption?: string;
+}
+
 export interface BlogPost {
   id: string;
   slug: string;
@@ -23,6 +31,7 @@ export interface BlogPost {
   content: string;
   category: BlogCategory;
   coverImage: string;
+  images?: BlogPostImage[];
   authorName: string;
   readTime: string;
   tags: string[];

@@ -101,6 +101,13 @@ export interface CmsStrings {
   fieldUploadTooLarge: string;
   fieldUploadFailed: string;
   fieldImagePreviewAlt: string;
+  fieldPostImagesHeading: string;
+  fieldUploadPostImages: string;
+  fieldPlacementTop: string;
+  fieldPlacementMiddle: string;
+  fieldPlacementBottom: string;
+  fieldPlacementAuto: string;
+  fieldSetAsCover: string;
   dashTabSocial: string;
   socialSectionTitle: string;
   socialSectionSub: string;
@@ -258,6 +265,13 @@ const CMS_STRINGS: Record<LanguageCode, CmsStrings> = {
     fieldUploadTooLarge: 'Image file must be 12 MB or smaller.',
     fieldUploadFailed: 'Could not process the selected image file.',
     fieldImagePreviewAlt: 'Image preview',
+    fieldPostImagesHeading: 'Article Photos & Section Placement (Top / Middle / Bottom)',
+    fieldUploadPostImages: 'Upload multiple images (top, middle, bottom)',
+    fieldPlacementTop: 'Top',
+    fieldPlacementMiddle: 'Middle',
+    fieldPlacementBottom: 'Bottom',
+    fieldPlacementAuto: 'Auto (Top → Mid → Bottom)',
+    fieldSetAsCover: 'Set Cover',
     dashTabSocial: 'Social Media Links',
     socialSectionTitle: 'Official Social Media Links',
     socialSectionSub:
@@ -417,6 +431,13 @@ const CMS_STRINGS: Record<LanguageCode, CmsStrings> = {
     fieldUploadTooLarge: 'La imagen debe pesar 12 MB o menos.',
     fieldUploadFailed: 'No se pudo procesar la imagen seleccionada.',
     fieldImagePreviewAlt: 'Vista previa de imagen',
+    fieldPostImagesHeading: 'Fotos del Artículo y Ubicación (Arriba / Medio / Abajo)',
+    fieldUploadPostImages: 'Subir varias imágenes (arriba, medio, abajo)',
+    fieldPlacementTop: 'Arriba',
+    fieldPlacementMiddle: 'Medio',
+    fieldPlacementBottom: 'Abajo',
+    fieldPlacementAuto: 'Auto (Arriba → Medio → Abajo)',
+    fieldSetAsCover: 'Usar Portada',
     dashTabSocial: 'Redes Sociales',
     socialSectionTitle: 'Redes Sociales Oficiales',
     socialSectionSub:
@@ -576,6 +597,13 @@ const CMS_STRINGS: Record<LanguageCode, CmsStrings> = {
     fieldUploadTooLarge: 'يجب ألا يتجاوز حجم الصورة 12 ميجابايت.',
     fieldUploadFailed: 'تعذّر معالجة ملف الصورة المحدد.',
     fieldImagePreviewAlt: 'معاينة الصورة',
+    fieldPostImagesHeading: 'صور المقال وتوزيعها (أعلى / وسط / أسفل المقال)',
+    fieldUploadPostImages: 'رفع عدة صور (أعلى، وسط، أسفل)',
+    fieldPlacementTop: 'أعلى المقال',
+    fieldPlacementMiddle: 'وسط المقال',
+    fieldPlacementBottom: 'أسفل المقال',
+    fieldPlacementAuto: 'توزيع تلقائي (أعلى ← وسط ← أسفل)',
+    fieldSetAsCover: 'تعيين كغلاف',
     dashTabSocial: 'روابط التواصل الاجتماعي',
     socialSectionTitle: 'روابط حسابات التواصل الاجتماعي',
     socialSectionSub:
