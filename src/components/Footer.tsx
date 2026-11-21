@@ -1,5 +1,6 @@
 import { BrandMark } from './BrandMark';
 import { LanguageCode, ProductCategory, UI_TRANSLATIONS } from '../data/factoryData';
+import { CATALOG_2026_PDF_URL } from '../data/catalog2026Data';
 import { getAppStrings, getLocalizedCategories } from '../data/translations';
 
 interface FooterProps {
@@ -37,7 +38,7 @@ export function Footer({
                   {s.brandFull}
                 </p>
                 <p className="text-xs text-blue-200/80">
-                  {s.footerSince}
+                  Ningbo Yilaipulin Plastic Industry Co., Ltd. · {s.footerSince}
                 </p>
               </div>
             </div>
@@ -150,9 +151,18 @@ export function Footer({
                   yilaiplastics@gmail.com
                 </a>
               </li>
-              <li dir="ltr" className="font-mono text-xs">+86 138 0584 2910</li>
+              <li dir="ltr" className="font-mono text-xs">+86 137 5705 0848</li>
               <li className="text-xs text-blue-200/75">
                 {s.quoteAddressValue}
+              </li>
+              <li>
+                <a
+                  href={CATALOG_2026_PDF_URL}
+                  download="Ningbo-Yilaipulin-Yi-Lai-Plastics-2026-Catalog.pdf"
+                  className="text-xs font-semibold text-blue-200 hover:text-white underline underline-offset-4 transition-colors"
+                >
+                  2026 Catalog (PDF)
+                </a>
               </li>
             </ul>
           </div>

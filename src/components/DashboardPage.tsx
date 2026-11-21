@@ -63,6 +63,7 @@ import {
   SocialPlatformIcon,
   SocialPlatformKey,
 } from './SocialLinksBar';
+import { applyTextareaPaste, FormattedRichContent } from '../utils/richText';
 
 interface DashboardPageProps {
   lang: LanguageCode;
@@ -144,6 +145,7 @@ export function DashboardPage({
   );
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [showPostPreview, setShowPostPreview] = useState(false);
 
   const padSocialForm = (links: SocialMediaLinks): SocialMediaLinks => {
     const padded = { ...EMPTY_SOCIAL_LINKS };
@@ -510,6 +512,7 @@ export function DashboardPage({
   const openAddPostModal = () => {
     setEditingPostId(null);
     setPostUploadError(null);
+    setFeedback(null);
     const autoSeoActive = seoSettings.autoApplyToNewContent !== false;
     const inheritedTags =
       autoSeoActive && seoSettings.keywords.length > 0
@@ -518,7 +521,7 @@ export function DashboardPage({
     setPostForm({
       ...EMPTY_BLOG_FORM,
       publishedAt: new Date().toISOString().slice(0, 10),
-      socialLinks: { ...socialLinks },
+      socialLinks: undefined,
     });
     setTagsText(inheritedTags);
     setPostModalOpen(true);
@@ -527,6 +530,7 @@ export function DashboardPage({
   const openEditPostModal = (post: BlogPost) => {
     setEditingPostId(post.id);
     setPostUploadError(null);
+    setFeedback(null);
     setPostForm({
       slug: post.slug,
       title: post.title,
@@ -539,7 +543,7 @@ export function DashboardPage({
       tags: post.tags,
       status: post.status,
       publishedAt: post.publishedAt,
-      socialLinks: hasAnySocialLink(post.socialLinks) ? post.socialLinks : { ...socialLinks },
+      socialLinks: hasAnySocialLink(post.socialLinks) ? post.socialLinks : undefined,
     });
     setTagsText(post.tags.join(', '));
     setPostModalOpen(true);
@@ -605,19 +609,16 @@ export function DashboardPage({
         ? sanitizeSlug(postForm.slug, 'post')
         : sanitizeSlug(postForm.title, 'post');
 
-      const attachedSocial = editingPostId
-        ? hasAnySocialLink(postForm.socialLinks)
-          ? postForm.socialLinks
-          : socialLinks
-        : socialLinks;
-
       await saveBlogPost(
         user.uid,
         {
           ...postForm,
           slug: finalSlug,
           tags: mergedTags,
-          socialLinks: attachedSocial,
+          socialLinks:
+            editingPostId && hasAnySocialLink(postForm.socialLinks)
+              ? postForm.socialLinks
+              : undefined,
         },
         editingPostId ?? undefined
       );
@@ -1969,37 +1970,24 @@ export function DashboardPage({
                       </span>
                     </label>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <select
-                        value={
-                          STUDIO_IMAGE_PRESETS.some((p) => p.src === postForm.coverImage)
-                            ? postForm.coverImage
-                            : ''
-                        }
-                        onChange={(e) => {
-                          if (e.target.value) setPostForm({ ...postForm, coverImage: e.target.value });
-                        }}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-[#0B1B3E]"
-                      >
-                        <option value="">{s.fieldPresetSelect}</option>
-                        {STUDIO_IMAGE_PRESETS.map((preset) => (
-                          <option key={preset.src} value={preset.src}>
-                            {preset.label}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="text"
-                        value={
-                          postForm.coverImage.startsWith('data:image/')
-                            ? '[Uploaded Photo Ready]'
-                            : postForm.coverImage
-                        }
-                        onChange={(e) => setPostForm({ ...postForm, coverImage: e.target.value })}
-                        placeholder={s.fieldCustomUrlPlaceholder}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-[#0B1B3E]"
-                      />
-                    </div>
+                    <select
+                      value={
+                        STUDIO_IMAGE_PRESETS.some((p) => p.src === postForm.coverImage)
+                          ? postForm.coverImage
+                          : ''
+                      }
+                      onChange={(e) => {
+                        if (e.target.value) setPostForm({ ...postForm, coverImage: e.target.value });
+                      }}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-[#0B1B3E]"
+                    >
+                      <option value="">{s.fieldPresetSelect}</option>
+                      {STUDIO_IMAGE_PRESETS.map((preset) => (
+                        <option key={preset.src} value={preset.src}>
+                          {preset.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -2016,114 +2004,68 @@ export function DashboardPage({
                   {s.fieldPostExcerpt}
                 </label>
                 <textarea
-                  rows={2}
+                  rows={3}
                   required
                   value={postForm.excerpt}
                   onChange={(e) => setPostForm({ ...postForm, excerpt: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm text-[#0B1B3E]"
+                  onPaste={(e) =>
+                    applyTextareaPaste(e, postForm.excerpt, (nextVal) =>
+                      setPostForm((prev) => ({ ...prev, excerpt: nextVal }))
+                    )
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm text-[#0B1B3E] leading-relaxed whitespace-pre-wrap [tab-size:4] overflow-x-auto"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#0B1B3E] mb-1.5">
-                  {s.fieldPostContent}
-                </label>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <label className="block text-xs font-semibold text-[#0B1B3E]">
+                    {s.fieldPostContent}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPostPreview((prev) => !prev)}
+                    className="text-xs font-semibold text-[#155EEF] hover:text-[#0B1B3E] transition-colors cursor-pointer"
+                  >
+                    {showPostPreview ? 'Hide Preview' : 'Preview Tables & Formatting'}
+                  </button>
+                </div>
                 <textarea
-                  rows={7}
+                  rows={10}
                   required
                   value={postForm.content}
                   onChange={(e) => setPostForm({ ...postForm, content: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-sm text-[#0B1B3E] leading-relaxed"
+                  onPaste={(e) =>
+                    applyTextareaPaste(e, postForm.content, (nextVal) =>
+                      setPostForm((prev) => ({ ...prev, content: nextVal }))
+                    )
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-[#F8FAFE] px-3.5 py-2.5 text-xs sm:text-sm font-mono text-[#0B1B3E] leading-relaxed whitespace-pre-wrap [tab-size:4] overflow-x-auto"
                 />
-              </div>
-
-              {/* Auto-Attached Social Media Links Preview */}
-              <div className="rounded-2xl bg-[#F8FAFE] border border-slate-200/80 p-4 space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-bold text-[#0B1B3E]">{s.socialAutoAttachLabel}</p>
-                    <p className="text-[11px] text-slate-500">{s.socialAutoAttachSub}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPostModalOpen(false);
-                      setActiveTab('social');
-                    }}
-                    className="text-xs font-semibold text-[#155EEF] hover:underline cursor-pointer"
-                  >
-                    {s.socialManageShortcut}
-                  </button>
-                </div>
-                {hasAnySocialLink(socialLinks) ? (
-                  <SocialLinksBar links={socialLinks} lang={lang} compact />
-                ) : (
-                  <p className="text-xs text-slate-500">{s.socialNoLinksYet}</p>
+                {showPostPreview && (
+                  <section className="mt-3 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 max-h-80 overflow-y-auto space-y-4">
+                    {postForm.excerpt.trim() && (
+                      <section className="pb-3 border-b border-slate-100">
+                        <FormattedRichContent text={postForm.excerpt} variant="excerpt" />
+                      </section>
+                    )}
+                    {postForm.content.trim() ? (
+                      <FormattedRichContent text={postForm.content} variant="article" />
+                    ) : (
+                      <p className="text-xs text-slate-400">
+                        Paste text or tables above to preview how they will render on the blog.
+                      </p>
+                    )}
+                  </section>
                 )}
               </div>
 
-              {/* Auto-Applied SEO Studio Configuration Preview */}
-              <div className="rounded-2xl bg-[#F8FAFE] border border-slate-200/80 p-4 space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Search className="w-4 h-4 text-[#155EEF]" />
-                    <div>
-                      <p className="text-xs font-bold text-[#0B1B3E]">
-                        Auto-Applied SEO Configuration
-                      </p>
-                      <p className="text-[11px] text-slate-500">
-                        {seoSettings.autoApplyToNewContent !== false
-                          ? 'SEO Studio keywords, schemas, canonicals & Search Console verification auto-apply on publish.'
-                          : 'Auto-inheritance is paused in SEO Studio (canonical & core tags still apply).'}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPostModalOpen(false);
-                      setActiveTab('seo');
-                    }}
-                    className="text-xs font-semibold text-[#155EEF] hover:underline cursor-pointer whitespace-nowrap"
-                  >
-                    Edit SEO settings
-                  </button>
+              {feedback?.type === 'error' && (
+                <div className="flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-xs font-medium text-[#E1262D] break-words">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{feedback.text}</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                  <div className="rounded-xl bg-white border border-slate-200/70 px-3 py-2">
-                    <span className="font-semibold text-slate-500 block mb-0.5">
-                      Canonical URL
-                    </span>
-                    <span className="font-mono text-[#0B1B3E] break-all">
-                      {`${(seoSettings.canonicalUrl || 'https://yilaiplastics.online').replace(/\/+$/, '')}/?page=blog&post=${sanitizeSlug(
-                        postForm.slug.trim() || postForm.title.trim(),
-                        'post'
-                      )}`}
-                    </span>
-                  </div>
-                  <div className="rounded-xl bg-white border border-slate-200/70 px-3 py-2">
-                    <span className="font-semibold text-slate-500 block mb-0.5">
-                      Inherited Schema &amp; Verification
-                    </span>
-                    <span className="text-[#0B1B3E] font-medium">
-                      Article + Breadcrumb
-                      {seoSettings.enableFaqSchema !== false ? ' + FAQPage' : ''}
-                      {seoSettings.enableHreflangTags !== false ? ' + hreflang' : ''}
-                      {seoSettings.googleVerification ? ' + Google Console' : ''}
-                    </span>
-                  </div>
-                </div>
-                {seoSettings.autoApplyToNewContent !== false &&
-                  seoSettings.keywords.length > 0 && (
-                    <p className="text-[11px] text-slate-600">
-                      <span className="font-semibold text-[#0B1B3E]">Inherited Keywords: </span>
-                      {seoSettings.keywords.slice(0, 6).join(', ')}
-                      {seoSettings.keywords.length > 6
-                        ? ` (+${seoSettings.keywords.length - 6} more)`
-                        : ''}
-                    </p>
-                  )}
-              </div>
+              )}
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
                 <button

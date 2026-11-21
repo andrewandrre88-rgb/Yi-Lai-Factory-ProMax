@@ -1,7 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, Download, Search, SlidersHorizontal } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Download,
+  FileDown,
+  Search,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { LanguageCode, ProductCategory, ProductVariant } from '../data/factoryData';
+import {
+  CATALOG_2026_PDF_URL,
+  CATALOG_MODELS_2026,
+  CATALOG_SERIES_META,
+  CatalogSeriesId,
+  LOTION_CUSTOMIZATION_MATRIX,
+  TRIGGER_CLOSURE_CODES,
+  TRIGGER_LEVER_CODES,
+  TRIGGER_NOZZLE_CODES,
+  TRIGGER_SHROUD_STYLES,
+} from '../data/catalog2026Data';
 import { getAppStrings, getLocalizedCategories } from '../data/translations';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ProductIcon } from './ProductIcon';
@@ -18,7 +36,17 @@ interface ProductsPageProps {
   onGoToNozzleLab: () => void;
 }
 
-const NECK_SIZES = ['18/415', '20/410', '24/410', '28/400', '28/410', '33/410'] as const;
+const NECK_SIZES = [
+  'FEA',
+  '20/410',
+  '24/410',
+  '28/400',
+  '28/410',
+  '28/415',
+  '33/',
+  '38 mm',
+  '62 mm',
+] as const;
 
 export function ProductsPage({
   lang,
@@ -37,6 +65,7 @@ export function ProductsPage({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(initialCategoryId || 'all');
   const [selectedNeck, setSelectedNeck] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCatalogSeries, setSelectedCatalogSeries] = useState<CatalogSeriesId | 'all'>('all');
 
   useEffect(() => {
     if (initialCategoryId) {
@@ -44,11 +73,25 @@ export function ProductsPage({
     }
   }, [initialCategoryId]);
 
+  // Keep the 2026 Full Directory aligned cleanly when user filters top category
+  useEffect(() => {
+    if (selectedCategoryId === 'all') {
+      setSelectedCatalogSeries('all');
+      return;
+    }
+    const matchingSeries = CATALOG_SERIES_META.filter((m) => m.siteCategoryId === selectedCategoryId);
+    if (matchingSeries.length === 1) {
+      setSelectedCatalogSeries(matchingSeries[0].id);
+    } else {
+      setSelectedCatalogSeries('all');
+    }
+  }, [selectedCategoryId]);
+
   const handleDownloadCatalogue = () => {
     const lines = [
-      'YI LAI PLASTICS INDUSTRY — TECHNICAL DISPENSING CATALOGUE (2026)',
-      'Factory: Yuyao, Ningbo, Zhejiang, China | Email: yilaiplastics@gmail.com',
-      '=========================================================================',
+      'NINGBO YILAIPULIN PLASTIC INDUSTRY CO., LTD. (YI LAI PLASTICS) — 2026 CATALOG',
+      'Factory: Yuyao, Ningbo, Zhejiang, China | Email: yilaiplastics@gmail.com | Tel: +86 137 5705 0848',
+      '=================================================================================',
       '',
       ...categories.flatMap((cat) => [
         `${cat.index}. ${cat.name.toUpperCase()}`,
@@ -60,13 +103,19 @@ export function ProductsPage({
         ),
         '',
       ]),
+      'COMPLETE 2026 PDF CATALOG DIRECTORY (81 MODELS)',
+      '---------------------------------------------------------------------------------',
+      ...CATALOG_MODELS_2026.map(
+        (m) =>
+          `${m.code} | ${m.name} | Neck: ${m.neckSizes} | Material: ${m.material} | Output: ${m.output} | ${m.feature} (Catalog p.${m.page})`
+      ),
     ];
 
     const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Yi-Lai-Plastics-Dispensing-Catalogue-2026-${lang}.txt`;
+    link.download = `Ningbo-Yilaipulin-Yi-Lai-Dispensing-Catalogue-2026-${lang}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -82,7 +131,9 @@ export function ProductsPage({
     })
     .map((cat) => {
       const matchingVariants = cat.variants.filter((v) => {
-        const matchesNeck = selectedNeck === 'all' || v.neckFinish.includes(selectedNeck);
+        const matchesNeck =
+          selectedNeck === 'all' ||
+          v.neckFinish.toLowerCase().includes(selectedNeck.toLowerCase());
         const matchesQuery =
           !query ||
           cat.name.toLowerCase().includes(query) ||
@@ -95,6 +146,49 @@ export function ProductsPage({
       return { ...cat, variants: matchingVariants };
     })
     .filter((cat) => cat.variants.length > 0);
+
+  const filteredCatalogModels = useMemo(() => {
+    return CATALOG_MODELS_2026.filter((item) => {
+      if (selectedCategoryId !== 'all' && item.siteCategoryId !== selectedCategoryId) {
+        return false;
+      }
+      if (selectedCatalogSeries !== 'all' && item.seriesId !== selectedCatalogSeries) {
+        return false;
+      }
+      if (
+        selectedNeck !== 'all' &&
+        !item.neckSizes.toLowerCase().includes(selectedNeck.toLowerCase())
+      ) {
+        return false;
+      }
+      if (query) {
+        const haystack =
+          `${item.code} ${item.name} ${item.neckSizes} ${item.material} ${item.feature} ${item.applications}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      return true;
+    });
+  }, [selectedCategoryId, selectedCatalogSeries, selectedNeck, query]);
+
+  const handleQuoteCatalogModel = (entry: (typeof CATALOG_MODELS_2026)[number]) => {
+    const parentCat = categories.find((c) => c.id === entry.siteCategoryId) ?? categories[0];
+    const syntheticVariant: ProductVariant = {
+      slug: entry.code.toLowerCase(),
+      model: `${entry.code} — ${entry.name}`,
+      neckFinish: entry.neckSizes,
+      dosage: entry.output,
+      closureStyle: entry.feature,
+      springType: entry.material,
+      moq: parentCat.moq,
+      materials: entry.material,
+      leadTime: '15–20 days',
+      applications: entry.applications,
+      description: `${entry.name} (${entry.code}, 2026 Catalog p.${entry.page})`,
+      features: [entry.feature],
+      gallery: [{ src: parentCat.image, label: entry.code }],
+    };
+    onQuoteVariant(entry.siteCategoryId, syntheticVariant);
+  };
 
   return (
     <div className="bg-[#F6F9FE] min-h-screen pb-20">
@@ -113,13 +207,21 @@ export function ProductsPage({
 
             <div className="flex flex-wrap items-center gap-4">
               <LanguageSwitcher lang={lang} onChangeLang={onChangeLang} />
+              <a
+                href={CATALOG_2026_PDF_URL}
+                download="Ningbo-Yilaipulin-Yi-Lai-Plastics-2026-Catalog.pdf"
+                className="inline-flex items-center gap-2 bg-[#E1262D] hover:bg-[#C61D24] text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-full transition-colors cursor-pointer"
+              >
+                <FileDown className="w-4 h-4" />
+                <span>{s.productsDownloadSpec}</span>
+              </a>
               <button
                 type="button"
                 onClick={handleDownloadCatalogue}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[#155EEF] hover:text-[#0B1B3E] transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#155EEF] hover:text-[#0B1B3E] transition-colors cursor-pointer"
               >
-                <span>{s.productsDownloadSpec}</span>
-                <Download className="w-4 h-4" />
+                <span>Spec Sheet (.TXT)</span>
+                <Download className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -174,7 +276,7 @@ export function ProductsPage({
                       key={neck}
                       type="button"
                       onClick={() => setSelectedNeck(neck)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-colors cursor-pointer border ${
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold transition-colors cursor-pointer border ${
                         active
                           ? 'bg-[#155EEF] text-white border-[#155EEF]'
                           : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-[#155EEF]'
@@ -188,7 +290,11 @@ export function ProductsPage({
             </div>
 
             {/* Category Tabs */}
-            <div className="pt-3 border-t border-slate-100 flex flex-wrap gap-2" role="tablist" aria-label={s.productsKicker}>
+            <div
+              className="pt-3 border-t border-slate-100 flex flex-wrap gap-2"
+              role="tablist"
+              aria-label={s.productsKicker}
+            >
               <button
                 type="button"
                 role="tab"
@@ -226,20 +332,19 @@ export function ProductsPage({
         </div>
       </section>
 
-      {/* Full Series & Model Specification List */}
+      {/* Featured Series Cards */}
       <section className="max-w-[1280px] mx-auto px-5 sm:px-8 pt-10 space-y-10">
-        {filteredCategories.length === 0 ? (
+        {filteredCategories.length === 0 && filteredCatalogModels.length === 0 ? (
           <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center">
             <h2 className="font-display font-bold text-xl text-[#0B1B3E]">
               {s.productsEmptyTitle}
             </h2>
-            <p className="mt-2 text-sm text-slate-600">
-              {s.productsEmptySub}
-            </p>
+            <p className="mt-2 text-sm text-slate-600">{s.productsEmptySub}</p>
             <button
               type="button"
               onClick={() => {
                 setSelectedCategoryId('all');
+                setSelectedCatalogSeries('all');
                 setSelectedNeck('all');
                 setSearchQuery('');
               }}
@@ -251,6 +356,10 @@ export function ProductsPage({
         ) : (
           filteredCategories.map((cat) => {
             const fullCategory = categories.find((c) => c.id === cat.id) ?? cat;
+            const seriesApplications = CATALOG_SERIES_META.filter(
+              (m) => m.siteCategoryId === cat.id
+            ).flatMap((m) => m.applications);
+
             return (
               <motion.div
                 key={cat.id}
@@ -276,9 +385,13 @@ export function ProductsPage({
                       <h2 className="mt-1 font-display font-extrabold text-2xl text-[#0B1B3E] tracking-tight">
                         {cat.name}
                       </h2>
-                      <p className="mt-1.5 text-sm text-slate-600 max-w-2xl">
-                        {cat.summary}
-                      </p>
+                      <p className="mt-1.5 text-sm text-slate-600 max-w-2xl">{cat.summary}</p>
+                      {seriesApplications.length > 0 && (
+                        <p className="mt-2 text-xs text-slate-500">
+                          <span className="font-semibold text-slate-700">Applications:</span>{' '}
+                          {Array.from(new Set(seriesApplications)).join(' · ')}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -335,19 +448,25 @@ export function ProductsPage({
 
                           <dl className="mt-3.5 space-y-1.5 text-xs text-slate-600">
                             <div className="flex justify-between gap-3">
-                              <dt className="text-slate-400 font-medium">{s.productsNeckFinishLabel}</dt>
+                              <dt className="text-slate-400 font-medium">
+                                {s.productsNeckFinishLabel}
+                              </dt>
                               <dd className="font-mono font-semibold text-[#0B1B3E] tabular-nums text-end">
                                 {variant.neckFinish}
                               </dd>
                             </div>
                             <div className="flex justify-between gap-3">
-                              <dt className="text-slate-400 font-medium">{s.productsDosageLabel}</dt>
+                              <dt className="text-slate-400 font-medium">
+                                {s.productsDosageLabel}
+                              </dt>
                               <dd className="font-mono font-semibold text-[#0B1B3E] tabular-nums text-end">
                                 {variant.dosage}
                               </dd>
                             </div>
                             <div className="flex justify-between gap-3">
-                              <dt className="text-slate-400 font-medium">{s.productsGalleryLabel}</dt>
+                              <dt className="text-slate-400 font-medium">
+                                {s.productsGalleryLabel}
+                              </dt>
                               <dd className="font-mono text-slate-700 text-end">
                                 {variant.gallery.length} {s.productsPhotosWord}
                               </dd>
@@ -381,6 +500,213 @@ export function ProductsPage({
           })
         )}
 
+        {/* Complete 2026 PDF Catalog Model Directory (81 Models · 8 Series) */}
+        <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-xs">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-5 border-b border-slate-100">
+            <div>
+              <p className="text-xs font-semibold tracking-wider text-[#E1262D] uppercase">
+                Ningbo Yilaipulin Plastic Industry Co., Ltd. · Catalog Index
+              </p>
+              <h2 className="mt-1 font-display font-extrabold text-2xl sm:text-3xl text-[#0B1B3E] tracking-tight">
+                2026 Full Catalog Model Directory ({filteredCatalogModels.length} / {CATALOG_MODELS_2026.length})
+              </h2>
+              <p className="mt-1.5 text-sm text-slate-600 max-w-2xl">
+                Every model code across all 8 catalog chapters (p. 4–98). Filter by chapter or request an instant quotation on any SKU.
+              </p>
+            </div>
+
+            <a
+              href={CATALOG_2026_PDF_URL}
+              download="Ningbo-Yilaipulin-Yi-Lai-Plastics-2026-Catalog.pdf"
+              className="inline-flex items-center gap-2 bg-[#0B1B3E] hover:bg-[#155EEF] text-white text-xs sm:text-sm font-semibold px-5 py-2.5 rounded-full transition-colors whitespace-nowrap shrink-0"
+            >
+              <FileDown className="w-4 h-4" />
+              <span>Download Full 98p Catalog PDF</span>
+            </a>
+          </div>
+
+          {/* 8 Catalog Series Tabs */}
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedCatalogSeries('all')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
+                selectedCatalogSeries === 'all'
+                  ? 'bg-[#155EEF] text-white border-[#155EEF]'
+                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-[#155EEF]'
+              }`}
+            >
+              All 8 Chapters ({CATALOG_MODELS_2026.length})
+            </button>
+            {CATALOG_SERIES_META.map((series) => {
+              const active = selectedCatalogSeries === series.id;
+              const count = CATALOG_MODELS_2026.filter((m) => m.seriesId === series.id).length;
+              return (
+                <button
+                  key={series.id}
+                  type="button"
+                  onClick={() => setSelectedCatalogSeries(series.id)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
+                    active
+                      ? 'bg-[#155EEF] text-white border-[#155EEF]'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-[#155EEF]'
+                  }`}
+                >
+                  {series.seriesNum}. {series.name} ({count})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Technical Directory Table */}
+          {filteredCatalogModels.length === 0 ? (
+            <p className="py-10 text-center text-sm text-slate-500">
+              {s.productsEmptyTitle} — try clearing your neck or keyword filter.
+            </p>
+          ) : (
+            <div className="mt-6 overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500 font-semibold text-xs uppercase tracking-wider">
+                    <th className="py-3 pe-4">Model</th>
+                    <th className="py-3 pe-4">Product Name</th>
+                    <th className="py-3 pe-4">Neck Finish</th>
+                    <th className="py-3 pe-4">Material</th>
+                    <th className="py-3 pe-4">Output / Dose</th>
+                    <th className="py-3 pe-4">Feature</th>
+                    <th className="py-3 pe-4 text-right">Page</th>
+                    <th className="py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredCatalogModels.map((entry) => (
+                    <tr key={entry.code} className="hover:bg-[#F8FAFE] transition-colors">
+                      <td className="py-3 pe-4 font-mono font-bold text-[#155EEF] whitespace-nowrap">
+                        {entry.code}
+                      </td>
+                      <td className="py-3 pe-4 font-semibold text-[#0B1B3E] min-w-[200px]">
+                        {entry.name}
+                        <span className="block text-xs font-normal text-slate-500">
+                          {entry.applications}
+                        </span>
+                      </td>
+                      <td className="py-3 pe-4 font-mono text-xs text-slate-700 whitespace-nowrap tabular-nums">
+                        {entry.neckSizes}
+                      </td>
+                      <td className="py-3 pe-4 font-mono text-xs text-slate-700 whitespace-nowrap">
+                        {entry.material}
+                      </td>
+                      <td className="py-3 pe-4 font-mono text-xs text-[#0B1B3E] whitespace-nowrap tabular-nums">
+                        {entry.output}
+                      </td>
+                      <td className="py-3 pe-4 text-xs text-slate-600 min-w-[180px]">
+                        {entry.feature}
+                      </td>
+                      <td className="py-3 pe-4 text-right font-mono text-xs text-slate-400 tabular-nums whitespace-nowrap">
+                        p. {entry.page}
+                      </td>
+                      <td className="py-3 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleQuoteCatalogModel(entry)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-[#E1262D] hover:text-[#0B1B3E] cursor-pointer"
+                        >
+                          <span>{s.productsQuoteBtn}</span>
+                          <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Customization Reference Matrices (p. 26-27 Trigger + p. 49 Lotion) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs space-y-4">
+            <div>
+              <p className="text-xs font-semibold tracking-wider text-[#155EEF] uppercase">
+                Trigger Customization Matrix · p. 26–27
+              </p>
+              <h3 className="mt-1 font-display font-bold text-xl text-[#0B1B3E]">
+                Modular Nozzles, Triggers, Closures &amp; 14 Shrouds
+              </h3>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-600">
+              <div>
+                <p className="font-semibold text-[#0B1B3E]">Nozzle Options (N1–N6)</p>
+                <p className="mt-1 font-mono text-slate-600">
+                  {TRIGGER_NOZZLE_CODES.map((n) => `${n.code}: ${n.label}`).join(' · ')}
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-[#0B1B3E]">Trigger Styles (T1–T6)</p>
+                <p className="mt-1 font-mono text-slate-600">
+                  {TRIGGER_LEVER_CODES.map((t) => `${t.code}: ${t.label}`).join(' · ')}
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-[#0B1B3E]">Closures (C1–C5)</p>
+                <p className="mt-1 font-mono text-slate-600">
+                  {TRIGGER_CLOSURE_CODES.map((c) => `${c.code}: ${c.neck}`).join(' · ')}
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-[#0B1B3E]">14 Shroud Cover Options</p>
+                <p className="mt-1 font-mono text-slate-600">
+                  {TRIGGER_SHROUD_STYLES.map((sh) => sh.code).join(' · ')}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs space-y-4">
+            <div>
+              <p className="text-xs font-semibold tracking-wider text-[#E1262D] uppercase">
+                Lotion Pump Customization Matrix · p. 49
+              </p>
+              <h3 className="mt-1 font-display font-bold text-xl text-[#0B1B3E]">
+                Lock Mechanisms, Collar Finishes &amp; 25+ Actuator Shapes
+              </h3>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-600">
+              <div>
+                <p className="font-semibold text-[#0B1B3E]">Lock Mechanisms (L1–L3)</p>
+                <ul className="mt-1 space-y-1">
+                  {LOTION_CUSTOMIZATION_MATRIX.locks.map((l) => (
+                    <li key={l.code}>
+                      <span className="font-mono font-bold text-[#155EEF]">{l.code}</span> ·{' '}
+                      <span className="font-semibold text-[#0B1B3E]">{l.name}</span> — {l.note}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold text-[#0B1B3E]">Closure Finishes (C1–C3)</p>
+                <ul className="mt-1 space-y-1">
+                  {LOTION_CUSTOMIZATION_MATRIX.finishes.map((f) => (
+                    <li key={f.code}>
+                      <span className="font-mono font-bold text-[#E1262D]">{f.code}</span> ·{' '}
+                      <span className="font-semibold text-[#0B1B3E]">{f.name}</span> — {f.note}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold text-[#0B1B3E]">Compatible Bottle Neck Sizes</p>
+                <p className="mt-1 font-mono text-slate-600 tabular-nums">
+                  {LOTION_CUSTOMIZATION_MATRIX.necks.join(' · ')} —{' '}
+                  {LOTION_CUSTOMIZATION_MATRIX.actuatorNote}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Bottom Customizer Callout */}
         <div className="rounded-3xl bg-[#081534] text-white p-7 sm:p-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
@@ -390,9 +716,7 @@ export function ProductsPage({
             <h2 className="mt-1.5 font-display font-extrabold text-2xl sm:text-3xl tracking-tight">
               {s.productsLabTitle}
             </h2>
-            <p className="mt-2 text-sm text-blue-100/80 max-w-2xl">
-              {s.productsLabSub}
-            </p>
+            <p className="mt-2 text-sm text-blue-100/80 max-w-2xl">{s.productsLabSub}</p>
           </div>
           <button
             type="button"
@@ -407,4 +731,3 @@ export function ProductsPage({
     </div>
   );
 }
-

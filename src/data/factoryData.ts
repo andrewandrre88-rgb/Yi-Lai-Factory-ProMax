@@ -121,14 +121,14 @@ export const UI_TRANSLATIONS: Record<
     navContact: 'Contact',
     navDashboard: 'Dashboard',
     requestQuote: 'Request a quote',
-    heroTrust: 'Yuyao, Ningbo · Trigger Sprayer & Dispenser Manufacturer · Since 2009',
+    heroTrust: 'Ningbo Yilaipulin Plastic Industry Co., Ltd. · Yuyao, Ningbo · 2026 Catalog Edition',
     heroTitlePrefix: 'Every',
     heroTitleHighlight: 'engineered',
     heroTitleSuffix: 'in-house.',
     heroSub:
-      'Yi Lai Plastics designs, moulds, and assembles trigger sprayers, lotion pumps, fine mist sprayers, and custom closures in Yuyao, Ningbo for brands and distributors worldwide.',
+      'Precision Dispensing, Trusted Worldwide. Ningbo Yilaipulin Plastic Industry Co., Ltd. (Yi Lai) designs, moulds, and assembles 81+ models across trigger & mini sprayers, lotion & foam pumps, fine mist, foundation & perfume atomizers, and bottle caps.',
     exploreProducts: 'Explore products',
-    getFreeSamples: 'View catalog',
+    getFreeSamples: '2026 Catalog (PDF)',
     pullTrigger: 'Pull the trigger',
     kpiYears: 'Years making dispensers',
     kpiEmployees: 'Skilled employees',
@@ -145,14 +145,14 @@ export const UI_TRANSLATIONS: Record<
     navContact: 'Contacto',
     navDashboard: 'Panel',
     requestQuote: 'Solicitar cotización',
-    heroTrust: 'Yuyao, Ningbo · Fabricante de Atomizadores y Bombas · Desde 2009',
+    heroTrust: 'Ningbo Yilaipulin Plastic Industry Co., Ltd. · Yuyao, Ningbo · Catálogo 2026',
     heroTitlePrefix: 'Cada',
     heroTitleHighlight: 'diseñado',
     heroTitleSuffix: 'en planta.',
     heroSub:
-      'Yi Lai Plastics diseña, moldea y ensambla atomizadores de gatillo, bombas dosificadoras de loción, pulverizadores de bruma fina y tapas en Yuyao, Ningbo para marcas de todo el mundo.',
+      'Dosificación de Precisión Global. Ningbo Yilaipulin Plastic Industry Co., Ltd. (Yi Lai) fabrica más de 81 modelos en atomizadores de gatillo y mini, bombas de loción y espuma, fine mist, base/perfumería y tapas plásticas.',
     exploreProducts: 'Ver productos',
-    getFreeSamples: 'Ver catálogo',
+    getFreeSamples: 'Catálogo 2026 (PDF)',
     pullTrigger: 'Apretar el gatillo',
     kpiYears: 'Años fabricando dosificadores',
     kpiEmployees: 'Especialistas en planta',
@@ -169,14 +169,14 @@ export const UI_TRANSLATIONS: Record<
     navContact: 'اتصل بنا',
     navDashboard: 'لوحة التحكم',
     requestQuote: 'اطلب عرض سعر',
-    heroTrust: 'يوياو، نينغبو · مصنع بخاخات الزناد ومضخات اللوشن · منذ 2009',
+    heroTrust: 'Ningbo Yilaipulin Plastic Industry Co., Ltd. · يوياو، نينغبو · كتالوج 2026',
     heroTitlePrefix: 'كل',
     heroTitleHighlight: 'مصمم ومصنّع',
     heroTitleSuffix: 'في مصنعنا.',
     heroSub:
-      'تقوم شركة Yi Lai Plastics بتصميم وقولبة وتجميع بخاخات الزناد ومضخات اللوشن وبخاخات الرذاذ الدقيق والأغطية المخصصة في يوياو، نينغبو للعلامات التجارية والموزعين حول العالم.',
+      'تقوم شركة Ningbo Yilaipulin Plastic Industry Co., Ltd. (Yi Lai) بتصميم وحقن وتجميع أكثر من 81 موديلاً تشمل بخاخات الزناد والميني، مضخات اللوشن والرغوة، الرذاذ الدقيق، مضخات الأساس والعطور، وأغطية العبوات.',
     exploreProducts: 'استكشف المنتجات',
-    getFreeSamples: 'عرض الكتالوج',
+    getFreeSamples: 'كتالوج 2026 (PDF)',
     pullTrigger: 'اسحب الزناد',
     kpiYears: 'عاماً في صناعة البخاخات',
     kpiEmployees: 'موظفاً وفنياً ماهراً',
@@ -194,9 +194,9 @@ export const PRODUCT_CATEGORIES: ProductCategory[] = [
     accent: 'blue',
     image: '/src/assets/images/product_trigger_sprayer_1795008502569.jpg',
     summary:
-      'Full-size ergonomic triggers with adjustable spray, stream, and off nozzles for household cleaning, garden, and automotive care.',
+      '21 catalog models (TS001–TS021) across Standard, All-Plastic, Heavy Duty, Chemical-Resistant & Kao-Gun styles with N1–N6 nozzles, T1–T6 triggers & 14 shrouds.',
     neckRange: '28/400 · 28/410 · 28/415',
-    outputRange: '1.10 – 1.40 ml',
+    outputRange: '0.80 – 1.40 ml',
     moq: '10,000 pcs',
     variants: [
       {
@@ -287,9 +287,9 @@ export const PRODUCT_CATEGORIES: ProductCategory[] = [
     accent: 'blue',
     image: '/src/assets/images/product_mini_trigger_1795008502797.jpg',
     summary:
-      'Compact, palm-sized triggers engineered for personal care, salon haircare, and travel bottles without sacrificing spray reach.',
-    neckRange: '20/410 · 24/410 · 28/410',
-    outputRange: '0.25 – 0.45 ml',
+      'Catalog models MTS001–MTS005 including ON/OFF collar locks and our Big Mouse trigger for haircare, skin mists, and travel bottles.',
+    neckRange: '20/410 · 28/400 · 28/410 · 28/415',
+    outputRange: '0.15 – 0.35 ml',
     moq: '10,000 pcs',
     variants: [
       {
@@ -349,14 +349,14 @@ export const PRODUCT_CATEGORIES: ProductCategory[] = [
   {
     id: 'foam-triggers',
     index: '03',
-    name: 'Foam Triggers',
-    shortName: 'Foam Triggers',
+    name: 'Foam Triggers & Pumps',
+    shortName: 'Foam Dispensers',
     accent: 'crimson',
     image: '/src/assets/images/product_foam_trigger_1795008503693.jpg',
     summary:
-      'Aerator mesh foaming nozzles that cling to vertical surfaces — purpose-built for degreasers, oven cleaners, and car-wash detergents.',
-    neckRange: '28/400 · 28/410',
-    outputRange: '1.20 – 1.60 ml',
+      'Hinged foam trigger nozzles (TS002, TS007) plus 9 self-foaming pump models (FP001–FP009) including Silicone Brush, Flower Stamp & Brushed Steel heads.',
+    neckRange: '28/400 · 28/410 · 33/410 · 40/410 · 45/410',
+    outputRange: '0.15 – 1.60 ml',
     moq: '10,000 pcs',
     variants: [
       {
@@ -421,9 +421,9 @@ export const PRODUCT_CATEGORIES: ProductCategory[] = [
     accent: 'blue',
     image: '/src/assets/images/product_lotion_pump_1795008503779.jpg',
     summary:
-      'Smooth, consistent high-viscosity dosing with lock-down and clip-lock heads for lotions, shampoos, hand soaps, and kitchen liquids.',
-    neckRange: '24/410 · 28/410 · 33/410',
-    outputRange: '2.00 – 4.00 ml',
+      '12 catalog series (LPS001–LPS012) with 25+ actuator heads, L1–L3 locks (Clip, Screw, Switch) & C1–C3 finishes (Smooth, Ribbed, Metal).',
+    neckRange: '24/410 · 28/400 · 28/410 · 30/410 · 33/400',
+    outputRange: '0.15 – 4.00 ml',
     moq: '10,000 pcs',
     variants: [
       {
@@ -509,14 +509,14 @@ export const PRODUCT_CATEGORIES: ProductCategory[] = [
   {
     id: 'fine-mist-sprayers',
     index: '05',
-    name: 'Fine Mist Sprayers',
-    shortName: 'Fine Mist Sprayers',
+    name: 'Fine Mist, Perfume & Foundation Pumps',
+    shortName: 'Fine Mist & Perfume',
     accent: 'blue',
     image: '/src/assets/images/product_fine_mist_1795008505359.jpg',
     summary:
-      'Precision micro-orifice atomization delivering an even, silky cloud for cosmetics, fragrances, hair care, and air fresheners.',
-    neckRange: '18/410 · 20/410 · 24/410',
-    outputRange: '0.12 – 0.20 ml',
+      '22 catalog models spanning Fine Mist (FMS001–FMS012), Treatment/Foundation Pumps (FNP001–FNP003), and Crimp/Crimpless Perfume Sprayers (PMS001–PMS007).',
+    neckRange: 'FEA 13/15 · 15/415 · 20/410 · 24/410 · 28/410',
+    outputRange: '0.07 – 0.25 ml',
     moq: '10,000 pcs',
     variants: [
       {
@@ -581,9 +581,9 @@ export const PRODUCT_CATEGORIES: ProductCategory[] = [
     accent: 'crimson',
     image: '/src/assets/images/product_bottle_caps_1795008504005.jpg',
     summary:
-      'Screw caps, flip-tops, disc tops, and push-pull closures moulded in matching virgin PP resin for total packaging line colour harmony.',
-    neckRange: '18/410 · 24/410 · 28/410',
-    outputRange: '2.5 – 6.0 mm orifice',
+      '12 catalog closure styles (BC001–BC012): ribbed & lined screw caps, cut-to-size nozzle caps, flip-tops, push-pull, detergent measuring caps (10–30 ml) & disc-tops.',
+    neckRange: '20/410 · 24/410 · 28/410 · 38–62 mm',
+    outputRange: '10–30 ml · 3–5 mm',
     moq: '20,000 pcs',
     variants: [
       {

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView, useReducedMotion } from 'motion/react';
-import { ArrowRight, Check, Crosshair, RotateCcw } from 'lucide-react';
+import { ArrowRight, Check, Crosshair, FileDown, RotateCcw } from 'lucide-react';
 import { LanguageCode, UI_TRANSLATIONS } from '../data/factoryData';
+import { CATALOG_2026_PDF_URL } from '../data/catalog2026Data';
 import { getAppStrings } from '../data/translations';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
@@ -222,13 +223,14 @@ export function HeroSection({
                 <ArrowRight className="w-4 h-4 rtl:rotate-180" />
               </button>
 
-              <button
-                type="button"
-                onClick={onViewCatalog}
+              <a
+                href={CATALOG_2026_PDF_URL}
+                download="Ningbo-Yilaipulin-Yi-Lai-Plastics-2026-Catalog.pdf"
                 className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-[#0B1B3E] border border-slate-300 font-semibold text-sm sm:text-base px-6 py-3.5 rounded-full transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B1B3E]"
               >
+                <FileDown className="w-4 h-4 text-[#E1262D]" />
                 <span>{t.getFreeSamples}</span>
-              </button>
+              </a>
             </div>
 
             {/* Clean Capability Checkmarks */}

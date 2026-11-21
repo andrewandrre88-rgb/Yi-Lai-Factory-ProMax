@@ -115,7 +115,7 @@ export function QuoteSection({ lang, prefill }: QuoteSectionProps) {
                     {s.quotePhoneLabel}
                   </p>
                   <p dir="ltr" className="text-sm font-bold font-mono text-[#0B1B3E]">
-                    +86 138 0584 2910
+                    +86 137 5705 0848
                   </p>
                 </div>
               </div>
@@ -129,7 +129,7 @@ export function QuoteSection({ lang, prefill }: QuoteSectionProps) {
                     {s.quoteAddressLabel}
                   </p>
                   <p className="text-sm font-bold text-[#0B1B3E]">
-                    {s.quoteAddressValue}
+                    Ningbo Yilaipulin Plastic Industry Co., Ltd. · {s.quoteAddressValue}
                   </p>
                 </div>
               </div>

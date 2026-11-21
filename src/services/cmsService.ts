@@ -379,8 +379,8 @@ function normalizeBlogPayload(input: BlogPostInput, uid: string) {
   return {
     slug,
     title: clampStr(input.title, 180),
-    excerpt: clampStr(input.excerpt, 400),
-    content: clampStr(input.content, 12000),
+    excerpt: clampStr(input.excerpt, 2000),
+    content: clampStr(input.content, 50000),
     category,
     coverImage: clampStr(
       input.coverImage,
@@ -1101,7 +1101,9 @@ export async function saveBlogPost(
         tags: normalized.tags,
         status: normalized.status,
         publishedAt: normalized.publishedAt,
-        socialLinks: normalized.socialLinks,
+        ...(hasAnySocialLink(normalized.socialLinks)
+          ? { socialLinks: normalized.socialLinks }
+          : {}),
         updatedAt: serverTimestamp(),
       });
     } else {
@@ -1118,7 +1120,41 @@ export async function saveBlogPost(
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           };
-      await setDoc(ref, createPayload);
+      try {
+        await setDoc(ref, createPayload);
+      } catch (writeErr) {
+        const checks: string[] = [];
+        if (!/^[a-zA-Z0-9_-]{1,128}$/.test(docId)) checks.push(`badId:${docId}`);
+        if (!VALID_BLOG_CATEGORIES.has(normalized.category)) checks.push(`badCat:${normalized.category}`);
+        if (!/^[a-zA-Z0-9_-]{1,100}$/.test(normalized.slug)) checks.push(`badSlug:${normalized.slug}`);
+        const strLimits: Array<[string, string, number]> = [
+          ['title', normalized.title, 180],
+          ['excerpt', normalized.excerpt, 2000],
+          ['content', normalized.content, 50000],
+          ['coverImage', normalized.coverImage, 100000],
+          ['authorName', normalized.authorName, 80],
+          ['readTime', normalized.readTime, 40],
+          ['publishedAt', normalized.publishedAt, 40],
+          ['authorUid', normalized.authorUid, 128],
+        ];
+        for (const [k, v, max] of strLimits) {
+          if (typeof v !== 'string' || v.length < 1 || v.length > max) {
+            checks.push(`badStr:${k}=${typeof v}:${String(v).length}`);
+          }
+        }
+        if (normalized.status !== 'published' && normalized.status !== 'draft') {
+          checks.push(`badStatus:${normalized.status}`);
+        }
+        if (normalized.tags.length > 8 || (normalized.tags.length > 0 && normalized.tags[0].length > 40)) {
+          checks.push(`badTags:${normalized.tags.length}`);
+        }
+        const diagSummary =
+          checks.length > 0
+            ? checks.join(',')
+            : `clientChecksOK;keys=${Object.keys(createPayload).length};hasSocial=${hasAnySocialLink(normalizedSocial)};coverLen=${normalized.coverImage.length};uidLen=${uid.length};slug=${normalized.slug}`;
+        const baseMsg = writeErr instanceof Error ? writeErr.message : String(writeErr);
+        throw new Error(`${baseMsg} [diag: ${diagSummary}]`);
+      }
     }
 
     return docId;

@@ -168,13 +168,13 @@
         "excerpt": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 400,
+          "maxLength": 2000,
           "description": "Short summary card preview."
         },
         "content": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 12000,
+          "maxLength": 50000,
           "description": "Full multi-paragraph article body."
         },
         "category": {

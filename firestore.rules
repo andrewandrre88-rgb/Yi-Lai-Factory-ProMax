@@ -173,8 +173,8 @@ service cloud.firestore {
         ])
         && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 100 && data.slug.matches('^[a-zA-Z0-9_\\-]+$')
         && data.title is string && data.title.size() >= 1 && data.title.size() <= 180
-        && data.excerpt is string && data.excerpt.size() >= 1 && data.excerpt.size() <= 400
-        && data.content is string && data.content.size() >= 1 && data.content.size() <= 12000
+        && data.excerpt is string && data.excerpt.size() >= 1 && data.excerpt.size() <= 2000
+        && data.content is string && data.content.size() >= 1 && data.content.size() <= 50000
         && data.category is string && isValidBlogCategory(data.category)
         && data.coverImage is string && data.coverImage.size() >= 1 && data.coverImage.size() <= 100000
         && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80

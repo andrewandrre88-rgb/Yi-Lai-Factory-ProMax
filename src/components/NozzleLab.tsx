@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, Crosshair } from 'lucide-react';
 import { LanguageCode } from '../data/factoryData';
+import {
+  TRIGGER_CLOSURE_CODES,
+  TRIGGER_LEVER_CODES,
+  TRIGGER_NOZZLE_CODES,
+  TRIGGER_SHROUD_STYLES,
+} from '../data/catalog2026Data';
 import { getAppStrings, getLocalizedNozzleColours } from '../data/translations';
 
 interface NozzleLabProps {
@@ -29,10 +35,16 @@ export function NozzleLab({ lang, onRequestSample }: NozzleLabProps) {
   const [testBurstCount, setTestBurstCount] = useState(0);
   const [isTesting, setIsTesting] = useState(false);
 
+  const [selectedShroud, setSelectedShroud] = useState<string>('G');
+  const [selectedNozzleCode, setSelectedNozzleCode] = useState<string>('N3');
+  const [selectedTriggerCode, setSelectedTriggerCode] = useState<string>('T2');
+  const [selectedClosureCode, setSelectedClosureCode] = useState<string>('C2');
+
   const selectedColour = nozzleColours.find((c) => c.id === selectedColourId) ?? nozzleColours[0];
   const bottleStyle = BOTTLE_STYLES.find((b) => b.id === bottleStyleId) ?? BOTTLE_STYLES[0];
   const patternLabel = s.labPatterns[pattern];
   const bottleLabel = s.labBottles[bottleStyle.id];
+  const modularCatalogCode = `${selectedShroud} + ${selectedNozzleCode} + ${selectedTriggerCode} + ${selectedClosureCode}`;
 
   const handleTestSpray = () => {
     setIsTesting(true);
@@ -46,7 +58,7 @@ export function NozzleLab({ lang, onRequestSample }: NozzleLabProps) {
       : `${selectedColour.name} (${selectedColour.pantone})`;
     const logoTxt = showLogoImprint ? s.labLogoOn : s.labLogoOff;
     onRequestSample(
-      `Nozzle Lab — ${patternLabel} | ${pantoneTxt} | ${neckFinish} | ${bottleLabel} | ${logoTxt}.`
+      `Nozzle Lab [${modularCatalogCode}] — ${patternLabel} | ${pantoneTxt} | ${neckFinish} | ${bottleLabel} | ${logoTxt}.`
     );
   };
 
@@ -195,6 +207,104 @@ export function NozzleLab({ lang, onRequestSample }: NozzleLabProps) {
                       {s.labBottles[b.id]}
                     </button>
                   ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 4. 2026 Catalog Modular Ordering Matrix (Shroud + Nozzle + Trigger + Closure) */}
+            <div className="rounded-2xl bg-white/5 border border-white/15 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-blue-100 tracking-wide">
+                  2026 Catalog Matrix · Modular Build Spec
+                </p>
+                <span className="font-mono text-xs font-bold text-white bg-[#155EEF] px-2.5 py-1 rounded-md tabular-nums">
+                  {modularCatalogCode}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label htmlFor="lab-shroud-select" className="block text-blue-200/80 mb-1">
+                    Shroud Cover (14 styles)
+                  </label>
+                  <select
+                    id="lab-shroud-select"
+                    value={selectedShroud}
+                    onChange={(e) => setSelectedShroud(e.target.value)}
+                    className="w-full rounded-lg bg-[#081534] border border-white/25 px-3 py-2 text-xs text-white focus:outline-none focus:border-white"
+                  >
+                    {TRIGGER_SHROUD_STYLES.map((sh) => (
+                      <option key={sh.code} value={sh.code}>
+                        {sh.code} — {sh.note}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="lab-nozzle-select" className="block text-blue-200/80 mb-1">
+                    Nozzle Option (N1–N6)
+                  </label>
+                  <select
+                    id="lab-nozzle-select"
+                    value={selectedNozzleCode}
+                    onChange={(e) => {
+                      const code = e.target.value;
+                      setSelectedNozzleCode(code);
+                      const found = TRIGGER_NOZZLE_CODES.find((n) => n.code === code);
+                      if (found) setPattern(found.pattern);
+                    }}
+                    className="w-full rounded-lg bg-[#081534] border border-white/25 px-3 py-2 text-xs text-white focus:outline-none focus:border-white"
+                  >
+                    {TRIGGER_NOZZLE_CODES.map((nz) => (
+                      <option key={nz.code} value={nz.code}>
+                        {nz.code} · {nz.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="lab-trigger-select" className="block text-blue-200/80 mb-1">
+                    Trigger Style (T1–T6)
+                  </label>
+                  <select
+                    id="lab-trigger-select"
+                    value={selectedTriggerCode}
+                    onChange={(e) => setSelectedTriggerCode(e.target.value)}
+                    className="w-full rounded-lg bg-[#081534] border border-white/25 px-3 py-2 text-xs text-white focus:outline-none focus:border-white"
+                  >
+                    {TRIGGER_LEVER_CODES.map((tr) => (
+                      <option key={tr.code} value={tr.code}>
+                        {tr.code} · {tr.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="lab-closure-select" className="block text-blue-200/80 mb-1">
+                    Closure Neck (C1–C5)
+                  </label>
+                  <select
+                    id="lab-closure-select"
+                    value={selectedClosureCode}
+                    onChange={(e) => {
+                      const code = e.target.value;
+                      setSelectedClosureCode(code);
+                      const found = TRIGGER_CLOSURE_CODES.find((c) => c.code === code);
+                      if (found && (found.neck === '28/400' || found.neck === '28/410')) {
+                        setNeckFinish(found.neck);
+                      }
+                    }}
+                    className="w-full rounded-lg bg-[#081534] border border-white/25 px-3 py-2 text-xs text-white focus:outline-none focus:border-white"
+                  >
+                    {TRIGGER_CLOSURE_CODES.map((cl) => (
+                      <option key={cl.code} value={cl.code}>
+                        {cl.code} · {cl.neck} ({cl.style})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

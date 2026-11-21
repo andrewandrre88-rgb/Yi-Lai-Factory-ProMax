@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Layers, Maximize2 } from 'lucide-react';
 import { LanguageCode } from '../data/factoryData';
+import {
+  BOM_SPEC_TABLES,
+  TRIGGER_PUMP_ARCHITECTURES,
+} from '../data/catalog2026Data';
 import { getAppStrings, getLocalizedBlueprintParts } from '../data/translations';
 
 interface EngineeringBlueprintProps {
@@ -13,6 +17,7 @@ export function EngineeringBlueprint({ lang }: EngineeringBlueprintProps) {
   const parts = getLocalizedBlueprintParts(lang);
   const [exploded, setExploded] = useState(true);
   const [selectedPartId, setSelectedPartId] = useState<number>(1);
+  const [activeBomTab, setActiveBomTab] = useState<'trigger' | 'miniTrigger' | 'lotion'>('trigger');
 
   const activePart = parts.find((p) => p.id === selectedPartId) ?? parts[0];
   const p1 = parts[0];
@@ -425,6 +430,92 @@ export function EngineeringBlueprint({ lang }: EngineeringBlueprintProps) {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* 2026 Catalog Mechanics: Pump Architectures & Component BOM Material Table */}
+        <div className="mt-12 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* 3 Pump Architectures + Working Cycle */}
+          <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs">
+            <p className="text-xs font-semibold tracking-wider text-[#E1262D] uppercase">
+              2026 Catalog Mechanics · p. 28
+            </p>
+            <h3 className="mt-1.5 font-display font-bold text-lg sm:text-xl text-[#0B1B3E]">
+              Piston Architectures &amp; Pump Cycle
+            </h3>
+            <p className="mt-1.5 text-xs sm:text-sm text-slate-600">
+              4-step cycle: Pull trigger → Liquid pushed out → Release spring → Automatic refill. Available in Shroud or Non-Shroud formats.
+            </p>
+
+            <div className="mt-4 divide-y divide-slate-100">
+              {TRIGGER_PUMP_ARCHITECTURES.map((arch, idx) => (
+                <div key={arch.id} className="py-3 first:pt-0 last:pb-0">
+                  <p className="text-xs sm:text-sm font-bold text-[#0B1B3E] flex items-center gap-2">
+                    <span className="font-mono text-xs text-[#155EEF] tabular-nums">0{idx + 1}</span>
+                    <span>{arch.title}</span>
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+                    {arch.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Complete Component Materials BOM Table */}
+          <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
+              <div>
+                <p className="text-xs font-semibold tracking-wider text-[#155EEF] uppercase">
+                  Bill of Materials · p. 28 · 35 · 50
+                </p>
+                <h3 className="mt-1 font-display font-bold text-lg text-[#0B1B3E]">
+                  Standard Polymer &amp; Alloy Specifications
+                </h3>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="BOM specifications">
+                {[
+                  { id: 'trigger' as const, label: 'Trigger (13 pcs)' },
+                  { id: 'miniTrigger' as const, label: 'Mini Trigger (14+ pcs)' },
+                  { id: 'lotion' as const, label: 'Lotion Pump (11 pcs)' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeBomTab === tab.id}
+                    onClick={() => setActiveBomTab(tab.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer whitespace-nowrap ${
+                      activeBomTab === tab.id
+                        ? 'bg-[#0B1B3E] text-white border-[#0B1B3E]'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-[#155EEF]'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2.5 text-xs">
+              {BOM_SPEC_TABLES[activeBomTab].map((row, idx) => (
+                <div
+                  key={row.part}
+                  className="flex items-center justify-between gap-2 py-1.5 border-b border-slate-100"
+                >
+                  <span className="text-slate-700 font-medium truncate">
+                    <span className="font-mono text-slate-400 me-1.5 tabular-nums">
+                      {String(idx + 1).padStart(2, '0')}
+                    </span>
+                    {row.part}
+                  </span>
+                  <span className="font-mono font-bold text-[#0B1B3E] shrink-0">
+                    {row.material}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

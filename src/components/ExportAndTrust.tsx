@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ArrowRight, Building2, PackageCheck, Palette, Truck } from 'lucide-react';
+import { ArrowRight, Building2, FileDown, PackageCheck, Palette, Truck } from 'lucide-react';
 import { LanguageCode } from '../data/factoryData';
+import { CATALOG_2026_PDF_URL, FACTORY_PROFILE_2026 } from '../data/catalog2026Data';
 import { getAppStrings, getLocalizedExportMarkets } from '../data/translations';
 
 interface ExportAndTrustProps {
@@ -33,10 +34,20 @@ export function ExportAndTrust({ lang, onTalkExport }: ExportAndTrustProps) {
                 {s.whySub}
               </p>
 
-              {/* Clean unboxed certification line */}
-              <p className="mt-6 pt-5 border-t border-slate-200 text-xs font-mono font-semibold text-slate-500">
-                {s.whyCerts}
-              </p>
+              {/* Clean unboxed certification line + 2026 Catalog PDF */}
+              <div className="mt-6 pt-5 border-t border-slate-200 space-y-3">
+                <p className="text-xs font-mono font-semibold text-slate-500">
+                  {s.whyCerts} · {FACTORY_PROFILE_2026.legalName}
+                </p>
+                <a
+                  href={CATALOG_2026_PDF_URL}
+                  download="Ningbo-Yilaipulin-Yi-Lai-Plastics-2026-Catalog.pdf"
+                  className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-[#155EEF] hover:text-[#0B1B3E] transition-colors"
+                >
+                  <FileDown className="w-4 h-4 text-[#E1262D]" />
+                  <span>Download 2026 Full Product Catalog (98-Page PDF)</span>
+                </a>
+              </div>
             </div>
 
             <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-5">

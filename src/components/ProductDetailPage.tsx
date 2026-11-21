@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, CheckCircle2, Palette, ShieldCheck, Truck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, FileDown, Palette, ShieldCheck, Truck } from 'lucide-react';
 import { LanguageCode, ProductCategory, ProductVariant } from '../data/factoryData';
+import {
+  CATALOG_2026_PDF_URL,
+  CATALOG_MODELS_2026,
+  CATALOG_SERIES_META,
+} from '../data/catalog2026Data';
 import { getAppStrings } from '../data/translations';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { SocialLinksBar, SocialMediaLinks } from './SocialLinksBar';
@@ -49,6 +54,13 @@ export function ProductDetailPage({
   const selectedColour = s.detailColours[colourIdx] ?? s.detailColours[0];
   const selectedVolume = s.detailVolumes[volumeIdx] ?? s.detailVolumes[1];
 
+  const matchingCatalogSeries = CATALOG_SERIES_META.filter(
+    (m) => m.siteCategoryId === category.id
+  );
+  const matchingCatalogModels = CATALOG_MODELS_2026.filter(
+    (m) => m.siteCategoryId === category.id
+  );
+
   return (
     <div className="bg-[#F6F9FE] min-h-screen pb-20">
       {/* Breadcrumb & Top Bar */}
@@ -77,6 +89,14 @@ export function ProductDetailPage({
 
           <div className="flex flex-wrap items-center gap-4">
             <LanguageSwitcher lang={lang} onChangeLang={onChangeLang} />
+            <a
+              href={CATALOG_2026_PDF_URL}
+              download="Ningbo-Yilaipulin-Yi-Lai-Plastics-2026-Catalog.pdf"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#155EEF] hover:text-[#0B1B3E] transition-colors"
+            >
+              <FileDown className="w-3.5 h-3.5 text-[#E1262D]" />
+              <span>2026 Catalog PDF</span>
+            </a>
             <span className="font-mono text-xs text-slate-500">
               {s.productsSeriesLabel} {category.index} · {s.detailFobNote}
             </span>
@@ -337,9 +357,96 @@ export function ProductDetailPage({
           </div>
         </div>
 
+        {/* 2026 PDF Catalog Reference & Series Lineup */}
+        {matchingCatalogModels.length > 0 && (
+          <div className="mt-14 pt-10 border-t border-slate-200/80">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold tracking-wider text-[#E1262D] uppercase">
+                  2026 Product Catalog Series ·{' '}
+                  {matchingCatalogSeries.map((ms) => ms.pageRange).join(' & ')}
+                </p>
+                <h2 className="mt-1 font-display font-extrabold text-2xl text-[#0B1B3E] tracking-tight">
+                  Complete Catalog Model Codes ({matchingCatalogModels.length} SKUs)
+                </h2>
+                {matchingCatalogSeries.length > 0 && (
+                  <p className="mt-1.5 text-xs sm:text-sm text-slate-600">
+                    {Array.from(
+                      new Set(matchingCatalogSeries.flatMap((ms) => ms.highlights))
+                    ).join(' · ')}
+                  </p>
+                )}
+              </div>
+
+              <a
+                href={CATALOG_2026_PDF_URL}
+                download="Ningbo-Yilaipulin-Yi-Lai-Plastics-2026-Catalog.pdf"
+                className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-[#155EEF] hover:text-[#0B1B3E] shrink-0"
+              >
+                <FileDown className="w-4 h-4 text-[#E1262D]" />
+                <span>Download Catalog PDF</span>
+              </a>
+            </div>
+
+            <div className="mt-5 bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-[#F8FAFE] text-slate-500 font-semibold text-xs uppercase tracking-wider">
+                      <th className="py-3 px-4">Code</th>
+                      <th className="py-3 px-4">Catalog Model</th>
+                      <th className="py-3 px-4">Neck</th>
+                      <th className="py-3 px-4">Output / Spec</th>
+                      <th className="py-3 px-4">Feature</th>
+                      <th className="py-3 px-4 text-right">Page</th>
+                      <th className="py-3 px-4 text-right">Quote</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {matchingCatalogModels.map((item) => (
+                      <tr key={item.code} className="hover:bg-[#F8FAFE] transition-colors">
+                        <td className="py-2.5 px-4 font-mono font-bold text-[#155EEF] whitespace-nowrap">
+                          {item.code}
+                        </td>
+                        <td className="py-2.5 px-4 font-semibold text-[#0B1B3E]">{item.name}</td>
+                        <td className="py-2.5 px-4 font-mono text-xs text-slate-700 whitespace-nowrap tabular-nums">
+                          {item.neckSizes}
+                        </td>
+                        <td className="py-2.5 px-4 font-mono text-xs text-[#0B1B3E] whitespace-nowrap tabular-nums">
+                          {item.output}
+                        </td>
+                        <td className="py-2.5 px-4 text-xs text-slate-600">{item.feature}</td>
+                        <td className="py-2.5 px-4 text-right font-mono text-xs text-slate-400 tabular-nums whitespace-nowrap">
+                          p. {item.page}
+                        </td>
+                        <td className="py-2.5 px-4 text-right whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onRequestQuote(
+                                category.id,
+                                variant,
+                                `Catalog Model ${item.code} (${item.name}) | Neck: ${item.neckSizes} | Output: ${item.output} | ${selectedColour.name} | ${selectedVolume}`
+                              )
+                            }
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-[#E1262D] hover:text-[#0B1B3E] cursor-pointer"
+                          >
+                            <span>{s.productsQuoteBtn}</span>
+                            <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Related Models in This Series */}
         {relatedVariants.length > 0 && (
-          <div className="mt-16 pt-10 border-t border-slate-200/80">
+          <div className="mt-14 pt-10 border-t border-slate-200/80">
             <h2 className="font-display font-extrabold text-2xl text-[#0B1B3E] tracking-tight">
               {s.detailMoreInSeries} {category.name}
             </h2>

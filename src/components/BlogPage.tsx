@@ -17,6 +17,7 @@ import { getCmsStrings } from '../data/cmsTranslations';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { SocialLinksBar, SocialMediaLinks } from './SocialLinksBar';
 import { hasAnySocialLink } from '../services/cmsService';
+import { FormattedRichContent, toPlainSummary } from '../utils/richText';
 
 interface BlogPageProps {
   lang: LanguageCode;
@@ -54,11 +55,6 @@ export function BlogPage({
     const relatedPosts = publishedPosts
       .filter((p) => p.id !== activePost.id)
       .slice(0, 3);
-
-    const paragraphs = activePost.content
-      .split(/\n\s*\n/)
-      .map((p) => p.trim())
-      .filter(Boolean);
 
     return (
       <div className="bg-[#F6F9FE] min-h-screen pb-20">
@@ -103,9 +99,7 @@ export function BlogPage({
             <h1 className="font-display font-extrabold text-3xl sm:text-5xl text-[#0B1B3E] tracking-tight leading-[1.15] text-balance">
               {activePost.title}
             </h1>
-            <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
-              {activePost.excerpt}
-            </p>
+            <FormattedRichContent text={activePost.excerpt} variant="excerpt" />
 
             <div className="pt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-500">
               <span className="inline-flex items-center gap-1.5 font-medium text-[#0B1B3E]">
@@ -133,14 +127,7 @@ export function BlogPage({
           </div>
 
           <div className="mt-8 bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-10 shadow-xs space-y-5">
-            {paragraphs.map((para, idx) => (
-              <p
-                key={idx}
-                className="text-sm sm:text-base text-slate-700 leading-relaxed whitespace-pre-line"
-              >
-                {para}
-              </p>
-            ))}
+            <FormattedRichContent text={activePost.content} variant="article" />
 
             {activePost.tags.length > 0 && (
               <div className="pt-6 border-t border-slate-100 flex flex-wrap items-center gap-2">
@@ -414,7 +401,7 @@ export function BlogPage({
                     </button>
 
                     <p className="mt-2.5 text-sm text-slate-600 line-clamp-3 leading-relaxed">
-                      {post.excerpt}
+                      {toPlainSummary(post.excerpt)}
                     </p>
                   </div>
                 </div>
